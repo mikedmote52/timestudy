@@ -79,6 +79,14 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
   <section class="card" id="panel0">
     <h2>1 · Provider information</h2>
     <p class="sub">Entered once — applied to all 7 daily pages and the activity summary page. Saved on this device for next quarter.</p>
+    <div class="card" style="margin:0 0 16px;background:#fbfdfd">
+      <h2 style="font-size:14px">Time study period</h2>
+      <p class="sub" style="margin-bottom:10px">Pick the current study — or choose "Other" and enter the dates straight from the notice email.</p>
+      <div class="grid2">
+        <div><label>Period</label><select id="qsel" onchange="periodChanged()"></select></div>
+        <div id="qcustomwrap" class="hidden"><label>First day of the study week (from the email)</label><input type="date" id="qstart" onchange="periodChanged()"></div>
+      </div>
+    </div>
     <div class="grid3">
       <div><label>Last name</label><input id="p_last"></div>
       <div><label>First name</label><input id="p_first"></div>
@@ -252,6 +260,7 @@ const CONFIG = {
   msClientId: "",       // hosted setup: Microsoft Entra app ID -> enables 1-click Outlook/AHS
   icsProxy: "",         // hosted setup: relay URL ending in ?url=  -> enables QGenda sync link fetch
   sendEndpoint: "",     // hosted setup: relay URL + /send  -> enables true one-click email submission
+  parseEndpoint: "",    // hosted setup: relay URL + /parse -> AI understands shifts said any way at all
   tsDates: "February 28 - March 6, 2026",
   days: [
     {d:1, date:"2026-02-28", label:"Sat", tt:"Feb 28"},
@@ -301,19 +310,70 @@ function daysFromStart(startISO){
     out.push({d:i+1, date:dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"),
       label:wn[dt.getDay()], tt:mn[dt.getMonth()]+" "+dt.getDate()}); }
   return out; }
+let REMOTE=null;
 async function loadRemoteConfig(){
   try{
-    const r=await fetch("quarters.json",{cache:"no-store"}); if(!r.ok) return;
-    const j=await r.json(); const q=j.quarters && j.quarters[j.active]; if(!q) return;
-    CONFIG.sfy=q.sfy; CONFIG.quarter=q.quarter; CONFIG.tsDates=q.tsDates; CONFIG.days=daysFromStart(q.start);
-    ["email","icsProxy","sendEndpoint","googleClientId","msClientId"].forEach(k=>{ if(j[k]) CONFIG[k]=j[k]; });
-    const hp=document.querySelector("header p");
-    if(hp) hp.textContent="Alameda Health System · Non-Physician Practitioner (Non-UC) · SFY "+CONFIG.sfy+" "+CONFIG.quarter+" · "+CONFIG.tsDates+" · DHCS 5293";
-    const ss=$("schedsub");
-    if(ss) ss.innerHTML="Pull your shifts for <b>"+CONFIG.tsDates+"</b> from QGenda, or enter them manually. Imported hours pre-fill the grid as <b>00001 Direct Patient Care</b> — you adjust in the next step.";
-  }catch(e){} }
+    const r=await fetch("quarters.json",{cache:"no-store"});
+    if(r.ok){ const j=await r.json();
+      ["email","icsProxy","sendEndpoint","parseEndpoint","googleClientId","msClientId"].forEach(k=>{ if(j[k]) CONFIG[k]=j[k]; });
+      if(j.quarters) REMOTE={active:j.active, quarters:j.quarters};
+    }
+  }catch(e){}
+  if(!REMOTE) REMOTE={active:"builtin", quarters:{builtin:{sfy:CONFIG.sfy,quarter:CONFIG.quarter,tsDates:CONFIG.tsDates,start:CONFIG.days[0].date}}};
+}
+function fiscalMeta(startISO){
+  const [Y,M,D]=startISO.split("-").map(Number);
+  const q = (M>=7&&M<=9)?"Q1":(M>=10)?"Q2":(M<=3)?"Q3":"Q4";
+  const fy = M>=7 ? Y+"-"+String((Y+1)%100).padStart(2,"0") : (Y-1)+"-"+String(Y%100).padStart(2,"0");
+  const a=new Date(Y,M-1,D), z=new Date(Y,M-1,D+6);
+  const MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const ts = MN[a.getMonth()]+" "+a.getDate()+" - "+(a.getMonth()===z.getMonth()? z.getDate() : MN[z.getMonth()]+" "+z.getDate())+", "+z.getFullYear();
+  return {sfy:fy, quarter:q, tsDates:ts};
+}
+function applyPeriod(startISO, meta){
+  const m = meta || fiscalMeta(startISO);
+  CONFIG.sfy=m.sfy; CONFIG.quarter=m.quarter; CONFIG.tsDates=m.tsDates; CONFIG.days=daysFromStart(startISO);
+  const hp=document.querySelector("header p");
+  if(hp) hp.textContent="Alameda Health System · Non-Physician Practitioner (Non-UC) · SFY "+CONFIG.sfy+" "+CONFIG.quarter+" · "+CONFIG.tsDates+" · DHCS 5293";
+  const ss=$("schedsub");
+  if(ss) ss.innerHTML="Pull your shifts for <b>"+CONFIG.tsDates+"</b> from QGenda, or enter them manually. Imported hours pre-fill the grid as <b>00001 Direct Patient Care</b> — you adjust in the next step.";
+}
+function buildPeriodUI(){
+  const sel=$("qsel"); if(!sel) return;
+  const qs=REMOTE.quarters;
+  sel.innerHTML = Object.keys(qs).map(k=>'<option value="'+k+'">SFY '+qs[k].sfy+' '+qs[k].quarter+' \u00b7 '+qs[k].tsDates+'</option>').join("")
+    + '<option value="custom">Other \u2014 enter dates from the notice email\u2026</option>';
+  let stored=null; try{ stored=localStorage.getItem("pnpp_period"); }catch(e){}
+  if(stored && stored.indexOf("custom:")===0){ sel.value="custom"; $("qstart").value=stored.slice(7); $("qcustomwrap").classList.remove("hidden"); }
+  else if(stored && qs[stored]) sel.value=stored;
+  else {
+    let best=null, bd=Infinity; const now=Date.now();
+    for(const k in qs){ const [Y,M,D]=qs[k].start.split("-").map(Number);
+      const d=Math.abs(new Date(Y,M-1,D+3).getTime()-now); if(d<bd){bd=d;best=k;} }
+    sel.value = best || (REMOTE.active && qs[REMOTE.active] ? REMOTE.active : sel.options[0].value);
+  }
+}
+function periodApply(fromUser){
+  const sel=$("qsel"); if(!sel||!sel.value) return;
+  if(sel.value==="custom"){
+    $("qcustomwrap").classList.remove("hidden");
+    const st=$("qstart").value; if(!st) return;
+    if(fromUser){ try{ localStorage.setItem("pnpp_period","custom:"+st); }catch(e){} }
+    applyPeriod(st);
+  } else {
+    $("qcustomwrap").classList.add("hidden");
+    const q=REMOTE.quarters[sel.value]; if(!q) return;
+    if(fromUser){ try{ localStorage.setItem("pnpp_period",sel.value); }catch(e){} }
+    applyPeriod(q.start,{sfy:q.sfy,quarter:q.quarter,tsDates:q.tsDates});
+  }
+}
+function periodChanged(){
+  periodApply(true);
+  S.hours=blank(); S.shifts=[]; S.specify={}; saveState();
+  renderSteps();
+}
 
-/* ================= STEPS NAV ================= */
+/* ================= STEPS NAV ================= *//* ================= STEPS NAV ================= */
 const STEPNAMES = ["Provider","Schedule","Hours","Sign & Send"];
 function renderSteps(){ $("steps").innerHTML = STEPNAMES.map((n,i)=>`<div class="step ${i===S.step?'active':i<S.step?'done':''}" onclick="go(${i})">${i+1}. ${n}</div>`).join(""); }
 function go(i){ saveState(); S.step=i; for(let k=0;k<4;k++) $("panel"+k).classList.toggle("hidden",k!==i); renderSteps();
@@ -433,9 +493,40 @@ function rangeFrom(m){
   if(!ap2){ const S=cvAP(m[3],m[4],ap1),A=cvAP(m[6],m[7],"am"),P=cvAP(m[6],m[7],"pm"); ap2=dur(S,A)<=dur(S,P)?"am":"pm"; }
   const s=cvAP(m[3],m[4],ap1), e=cvAP(m[6],m[7],ap2);
   return [s[0],s[1],e[0],e[1]]; }
-function parseTxt(){
+async function parseTxt(){
   const raw=$("txtshifts").value; if(!raw.trim()) return;
-  const t=raw.toLowerCase().replace(/[\u2013\u2014]/g,"-").replace(/\b(to|until|till|through|thru)\b/g,"-");
+  const btn=event&&event.target?event.target:null;
+  if(CONFIG.parseEndpoint){
+    try{
+      if(btn){btn.disabled=true;btn.textContent="Understanding\u2026";}
+      const r=await fetch(CONFIG.parseEndpoint,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text:raw,days:CONFIG.days.map(D=>D.date)})});
+      if(r.ok){
+        const j=await r.json();
+        if(j.shifts&&j.shifts.length){
+          const evs=[];
+          for(const s of j.shifts){ try{
+            const [Y,M,D]=s.date.split("-").map(Number);
+            const [h1,m1]=s.start.split(":").map(Number), [h2,m2]=s.end.split(":").map(Number);
+            let a=new Date(Y,M-1,D,h1,m1), z=new Date(Y,M-1,D,h2,m2);
+            if(z<=a) z=new Date(z.getTime()+864e5);
+            evs.push({start:a,end:z,name:(s.label||s.date+" "+s.start+"-"+s.end)});
+          }catch(e){} }
+          if(evs.length){ if(j.notes) alert("Note: "+j.notes); ingestShifts(evs); return; }
+        }
+        if(j.notes){ alert("Couldn't map that to shifts: "+j.notes); return; }
+      }
+    }catch(e){}
+    finally{ if(btn){btn.disabled=false;btn.textContent="Add my shifts";} }
+  }
+  parseTxtRegex(raw);
+}
+function parseTxtRegex(raw){
+  const t=raw.toLowerCase().replace(/[\u2013\u2014]/g,"-")
+    .replace(/\bnoon\b/g,"12pm").replace(/\bmidnight\b/g,"12am").replace(/\bfrom\s+/g,"")
+    .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(am|pm|a\.m\.?|p\.m\.?)/g,
+      function(m,w,ap){ return {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12}[w]+ap.replace(/\./g,""); })
+    .replace(/\b(to|until|till|through|thru)\b/g,"-");
   const wd={sunday:0,sun:0,monday:1,mon:1,tuesday:2,tues:2,tue:2,wednesday:3,wed:3,thursday:4,thurs:4,thur:4,thu:4,friday:5,fri:5,saturday:6,sat:6};
   const mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
   const days=CONFIG.days.map(D=>{ const [Y,M,Dd]=D.date.split("-").map(Number); return {Y,M,Dd,dow:new Date(Y,M-1,Dd).getDay()}; });
@@ -719,6 +810,8 @@ async function sendNow(){
 /* ================= INIT ================= */
 (async()=>{
 await loadRemoteConfig();
+buildPeriodUI();
+periodApply(false);
 try{ S.appliedSig=localStorage.getItem("pnpp_sig_applied")||null; }catch(e){ S.appliedSig=null; }
 loadState(); applyURLPrefill(); renderSteps();
 document.addEventListener("input",e=>{ if(e.target&&(e.target.id==="s_typed"||e.target.id==="s_mode")) renderChecks(); });
