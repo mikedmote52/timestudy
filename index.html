@@ -83,8 +83,10 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
       <h2 style="font-size:14px">Time study period</h2>
       <p class="sub" style="margin-bottom:10px">Pick the current study — or choose "Other" and enter the dates straight from the notice email.</p>
       <div class="grid2">
-        <div><label>Period</label><select id="qsel" onchange="periodChanged()"></select></div>
-        <div id="qcustomwrap" class="hidden"><label>First day of the study week (from the email)</label><input type="date" id="qstart" onchange="periodChanged()"></div>
+        <div><label>Known studies</label><select id="qsel" onchange="periodChanged()"></select></div>
+        <div id="qcustomwrap"><label>Or pick the study start date on the calendar</label><input type="date" id="qstart" onchange="startPicked()"></div>
+      </div>
+      <div style="margin-top:8px"><span class="pill ok" id="qend"></span>
       </div>
     </div>
     <div class="grid3">
@@ -337,6 +339,9 @@ function applyPeriod(startISO, meta){
   if(hp) hp.textContent="Alameda Health System · Non-Physician Practitioner (Non-UC) · SFY "+CONFIG.sfy+" "+CONFIG.quarter+" · "+CONFIG.tsDates+" · DHCS 5293";
   const ss=$("schedsub");
   if(ss) ss.innerHTML="Pull your shifts for <b>"+CONFIG.tsDates+"</b> from QGenda, or enter them manually. Imported hours pre-fill the grid as <b>00001 Direct Patient Care</b> — you adjust in the next step.";
+  const qe=$("qend");
+  if(qe){ const a=CONFIG.days[0], z=CONFIG.days[6], [Y]=z.date.split("-");
+    qe.innerHTML="&#10003; Study week: "+a.label+" "+a.tt+" &#8594; "+z.label+" "+z.tt+", "+Y+" &#183; SFY "+CONFIG.sfy+" "+CONFIG.quarter; }
 }
 function buildPeriodUI(){
   const sel=$("qsel"); if(!sel) return;
@@ -344,7 +349,7 @@ function buildPeriodUI(){
   sel.innerHTML = Object.keys(qs).map(k=>'<option value="'+k+'">SFY '+qs[k].sfy+' '+qs[k].quarter+' \u00b7 '+qs[k].tsDates+'</option>').join("")
     + '<option value="custom">Other \u2014 enter dates from the notice email\u2026</option>';
   let stored=null; try{ stored=localStorage.getItem("pnpp_period"); }catch(e){}
-  if(stored && stored.indexOf("custom:")===0){ sel.value="custom"; $("qstart").value=stored.slice(7); $("qcustomwrap").classList.remove("hidden"); }
+  if(stored && stored.indexOf("custom:")===0){ sel.value="custom"; $("qstart").value=stored.slice(7); }
   else if(stored && qs[stored]) sel.value=stored;
   else {
     let best=null, bd=Infinity; const now=Date.now();
@@ -356,17 +361,17 @@ function buildPeriodUI(){
 function periodApply(fromUser){
   const sel=$("qsel"); if(!sel||!sel.value) return;
   if(sel.value==="custom"){
-    $("qcustomwrap").classList.remove("hidden");
     const st=$("qstart").value; if(!st) return;
     if(fromUser){ try{ localStorage.setItem("pnpp_period","custom:"+st); }catch(e){} }
     applyPeriod(st);
   } else {
-    $("qcustomwrap").classList.add("hidden");
     const q=REMOTE.quarters[sel.value]; if(!q) return;
+    $("qstart").value=q.start;
     if(fromUser){ try{ localStorage.setItem("pnpp_period",sel.value); }catch(e){} }
     applyPeriod(q.start,{sfy:q.sfy,quarter:q.quarter,tsDates:q.tsDates});
   }
 }
+function startPicked(){ $("qsel").value="custom"; periodChanged(); }
 function periodChanged(){
   periodApply(true);
   S.hours=blank(); S.shifts=[]; S.specify={}; saveState();
