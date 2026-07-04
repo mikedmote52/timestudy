@@ -1,0 +1,13 @@
+{
+  "_how_to_use": "Each quarter: change 'active' to the new key and add its entry below. Every user's app updates automatically - no other changes needed.",
+  "active": "2025-26-Q3",
+  "email": "pnpptimestudies@alamedahealthsystem.org",
+  "icsProxy": "https://timestudy-relay.mikedmote5258.workers.dev/?url=",
+  "sendEndpoint": "",
+  "googleClientId": "",
+  "msClientId": "",
+  "quarters": {
+    "2025-26-Q3": { "sfy": "2025-26", "quarter": "Q3", "tsDates": "February 28 - March 6, 2026", "start": "2026-02-28" },
+    "2025-26-Q4": { "sfy": "2025-26", "quarter": "Q4", "tsDates": "April 22 - 28, 2026", "start": "2026-04-22" }
+  }
+}
