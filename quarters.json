@@ -4,6 +4,7 @@
   "email": "pnpptimestudies@alamedahealthsystem.org",
   "icsProxy": "https://timestudy-relay.mikedmote5258.workers.dev/?url=",
   "sendEndpoint": "",
+  "parseEndpoint": "https://timestudy-relay.mikedmote5258.workers.dev/parse",
   "googleClientId": "",
   "msClientId": "",
   "quarters": {
