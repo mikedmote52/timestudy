@@ -65,7 +65,7 @@ const STEPNAMES=["Your details","QGenda link","Edit exceptions","Review & DocuSi
 function renderSteps(){ $("steps").innerHTML=[1,3,0,2].map(i=>`<button type="button" class="step ${i===S.step?'active':''}" ${i===S.step?'aria-current="step"':''} onclick="go(${i})">${STEPNAMES[i]}</button>`).join(""); }
 function go(i){if(i===3&&typeof fillMissingCostCenters==='function')fillMissingCostCenters();saveState();S.step=i;for(let k=0;k<4;k++)$("panel"+k).classList.toggle("hidden",k!==i);renderSteps();if(i===1)renderShifts();if(i===2)renderGrid();if(i===3)renderChecks();window.scrollTo(0,0);}
 function copyLink(){
- const url="https://timestudy.moteops.tech/?study=2026-09-24";
+ const url="https://mikedmote52.github.io/timestudy/?study=2026-09-24";
  const done=()=>{$("savestatus").textContent="Colleague link copied. It contains no personal details.";};
  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(done,()=>prompt("Copy the colleague link:",url));
  else prompt("Copy the colleague link:",url);
@@ -128,7 +128,7 @@ function wallISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function ingestShifts(evs){
   const t0=winStart(), t1=winEnd();
   const kept=evs.filter(e=>e.end>t0 && e.start<t1).sort((a,b)=>a.start-b.start);
-  S.shifts=kept.map(e=>({start:wallISO(e.start),end:wallISO(e.end),name:e.name,use:true}));
+  S.shifts=kept.map(e=>({start:wallISO(e.start),end:wallISO(e.end),name:e.name,costCenter:e.costCenter||"",activity:e.activity||"1",use:true}));
   saveState();renderShifts();
   if(!kept.length) alert("Import worked, but found no events inside the study week.");
 }
@@ -152,10 +152,17 @@ function applyShifts(){
  if(CONFIG.days.some(D=>dayTotal(D.d)>0)&&!confirm("Replace all current activity hours with these selected shifts as draft direct patient-care hours?"))return;
  if(selected.some(s=>{const a=new Date(s.start),z=new Date(s.end);return a.getMinutes()%15||z.getMinutes()%15||a.getSeconds()||z.getSeconds();})){alert("These shift times are not quarter-hour boundaries. Enter actual activity hours directly in .25 increments; the app will not round your time automatically.");return;}
  const ccKey=$("cc_default").value, ccVal={ip:$("cc_ip").value,op:$("cc_op").value,er:$("cc_er").value,oth:$("cc_oth").value}[ccKey]||"";
- const perDay={};CONFIG.days.forEach(D=>perDay[D.d]=0);
- for(const s of selected){const a=new Date(s.start),z=new Date(s.end);for(const D of CONFIG.days){const [Y,M,Dd]=D.date.split("-").map(Number);const lo=Math.max(a,new Date(Y,M-1,Dd)),hi=Math.min(z,new Date(Y,M-1,Dd+1));if(hi>lo)perDay[D.d]+=(hi-lo)/3600000;}}
+ const perDay={};CONFIG.days.forEach(D=>perDay[D.d]={});
+ for(const s of selected){
+  const a=new Date(s.start),z=new Date(s.end),r=CONFIG.rows.some(R=>R.r===s.activity)?s.activity:'1',cc=s.costCenter||ccVal;
+  for(const D of CONFIG.days){
+   const [Y,M,Dd]=D.date.split("-").map(Number);const lo=Math.max(a,new Date(Y,M-1,Dd)),hi=Math.min(z,new Date(Y,M-1,Dd+1));
+   if(hi>lo){const key=JSON.stringify([r,cc]);perDay[D.d][key]=(perDay[D.d][key]||0)+(hi-lo)/3600000;}
+  }
+ }
+ for(const D of CONFIG.days)for(const R of CONFIG.rows)if(Object.keys(perDay[D.d]).filter(k=>JSON.parse(k)[0]===R.r).length>3){alert('More than three cost centers for one activity on '+D.tt+'. Review the allocations before importing.');return;}
  S.hours=blank();S.specify={};S.reviewed={};S.off={};S.paid={};
- CONFIG.days.forEach(D=>{const h=round25(perDay[D.d]);if(h>0){S.hours[D.d]["1"]=[{h:h.toFixed(2),c:ccVal}];S.paid[D.d]=h.toFixed(2);}});
+ for(const D of CONFIG.days){for(const [key,h] of Object.entries(perDay[D.d])){const [r,c]=JSON.parse(key);if(S.hours[D.d][r][0].h==='')S.hours[D.d][r]=[];S.hours[D.d][r].push({h:h.toFixed(2),c});}const total=dayTotal(D.d);if(total>0)S.paid[D.d]=total.toFixed(2);}
  saveState();$("importmessage").textContent="Draft hours added. Review the whole week together, and edit any unpaid breaks or different activities.";return true;
 }
 /* ================= HOURS GRID ================= */
@@ -220,7 +227,9 @@ function checks(){
  out.push({ok:total===normal||$("variance").value.trim().length>0,t:"Explanation entered if reported hours differ from normal weekly hours"});
  return out;
 }
-function renderChecks(){
+function renderChecks(refreshMissing=true){
+ if(refreshMissing&&typeof renderMissingDetails==='function')renderMissingDetails();
+ if($('preparedfor'))$('preparedfor').textContent=[$('p_first').value,$('p_last').value].filter(Boolean).join(' ')||'Your time study';
  if($("reviewshifts"))$("reviewshifts").innerHTML=S.shifts.filter(s=>s.use).map(s=>`<p>${esc(s.name)} · ${esc(new Date(s.start).toLocaleString())} → ${esc(new Date(s.end).toLocaleString())} (Pacific)</p>`).join("")||"<p>No calendar imported.</p>";
  $("checks").innerHTML=checks().map(c=>`<li class="${c.ok?'pass':'fail'}">${c.t}</li>`).join("");
  const total=CONFIG.days.reduce((v,D)=>v+dayTotal(D.d),0),normal=Number($("p_hpw").value)||0;

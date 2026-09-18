@@ -75,11 +75,11 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
 </head>
 <body>
 <header>
-  <h1>Your time study, made simpler</h1>
+  <h1>Your QGenda. Your time study.</h1>
   <p>Alameda Health System · Non-Physician Practitioner (Non-UC) · SFY 2026-27 Q1 · September 24–30, 2026 · DHCS 5293</p>
 </header>
 <div class="wrap">
-  <div class="banner info"><b>September 24–30, 2026</b><br>Paste your personal QGenda calendar link. We prepare the week on the current AHS form. Review it once, then sign through AHS DocuSign.</div>
+  <div class="banner info"><b>September 24–30, 2026</b><br>Paste your personal QGenda calendar link. We fill the dates, hours, totals and any personal details the calendar includes. Add only what’s missing, review, then sign with AHS DocuSign.</div>
   <div class="utility"><span id="savestatus" role="status">Draft saved on this browser only.</span><button class="btn sm sec" onclick="copyLink()">Copy colleague link</button><button class="btn sm sec" onclick="clearDraft()">Clear this device</button></div>
   <div class="steps" id="steps" aria-label="Time study steps"></div>
 
@@ -159,10 +159,11 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
   <!-- STEP 4: SIGN -->
   <section class="card hidden" id="panel3">
     <h2>Your prepared time study</h2>
+    <p><strong id="preparedfor">Your time study</strong> · <button class="btn sm sec" onclick="go(0)">Check saved details</button></p>
     <p class="sub">Your download is an <b>unsigned</b> copy of the current AHS form with your entries filled in. It is not submitted by this app.</p>
     <details><summary>Check imported shift dates and times</summary><div id="reviewshifts"></div></details>
     <p id="importnotice" class="banner info">QGenda provides scheduled hours. Confirm they match actual paid time, including any changed shifts, unpaid breaks, other activities or paid leave.</p>
-    <div id="profilegap" class="banner info hidden">AHS left these personal fields blank: <span id="profilegaptext"></span>.<br><button class="btn sec sm" onclick="go(0)">Reuse previous form or fill missing details</button></div>
+    <div id="profilegap" class="hidden"><span id="profilegaptext"></span></div><div id="missingwrap" class="card hidden" style="background:#f4f8f8"><h2>Just the details we couldn’t find</h2><p class="sub">Fill these once. They are reused when you return on this browser. A previous completed form can fill them too.</p><div id="missingdetails" class="grid2"></div><button class="btn sec sm" style="margin-top:12px" onclick="go(0)">Reuse a previous form or edit saved details</button></div>
     <div id="weeksummary"></div>
     <p class="muted">By confirming, I have checked all seven days against actual paid time and activity codes. Dates with zero hours were not worked and were unpaid.</p>
     <button class="btn sec" style="margin:12px 0" onclick="confirmWeek()">Confirm the whole week</button>

@@ -21,6 +21,37 @@ function calendarTime(t,property){
  }
  return pacificWall(t.toJSDate());
 }
+function labeledCalendarData(description){
+ const out={};
+ const labels={'staff':'name','staff name':'name','employee name':'name','provider name':'name','employee number':'p_emp','employee id':'p_emp','department':'p_dept','facility':'p_fac','hospital':'p_fac','position':'p_job','job classification':'p_job','normal weekly hours':'p_hpw','normal paid work hours per week':'p_hpw','telephone':'p_phone','phone':'p_phone','cost center':'costCenter','cost centre':'costCenter','activity code':'activity'};
+ for(const line of String(description||'').split(/\r?\n/)){
+  const match=line.match(/^\s*([^:]+):\s*(.{1,120})\s*$/);if(!match)continue;
+  const key=labels[match[1].trim().toLowerCase()];if(key)out[key]=match[2].trim();
+ }
+ return out;
+}
+function nameFields(name){
+ const n=String(name||'').trim();if(!n)return {};
+ if(n.includes(',')){const [last,rest]=n.split(',').map(v=>v.trim());return last&&rest?{p_last:last,p_first:rest}:{};}
+ const parts=n.split(/\s+/);return parts.length>=2?{p_first:parts.slice(0,-1).join(' '),p_last:parts.at(-1)}:{};
+}
+function applyCalendarProfile(profile){
+ const newName=[profile?.p_first,profile?.p_last].filter(Boolean).join(' ').toLowerCase(),oldName=[$('p_first').value,$('p_last').value].filter(Boolean).join(' ').toLowerCase();
+ const differentID=profile?.p_emp&&$('p_emp').value.trim()&&profile.p_emp!==$('p_emp').value.trim();
+ if(differentID||(newName&&oldName&&newName!==oldName)){
+  if(!confirm('This calendar identifies a different person from the saved draft. Clear the previous provider details and prepare this person’s form?'))throw new Error('Import cancelled. Saved provider details were kept.');
+  PFIELDS.forEach(k=>{if(k!=='cc_default')$(k).value='';});$('p_fac').value='Alameda Health System';S.hours=blank();S.specify={};S.paid={};S.off={};S.reviewed={};S.shifts=[];
+ }
+ for(const [key,value] of Object.entries(profile||{}))if(PFIELDS.includes(key)&&key!=='variance'&&(!$(key).value.trim()||(key==='p_fac'&&$(key).value==='Alameda Health System')))$(key).value=value;
+ saveState();
+}
+function explicitClockRange(text,date){
+ const re=/\b(\d{3,4})\s*[-–]\s*(\d{3,4})\b|(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?(?![a-z])/gi;
+ const ranges=[...text.matchAll(re)].map(rangeFrom).filter(Boolean);
+ if(ranges.length!==1)return null;
+ const [h,m,eh,em]=ranges[0],start=new Date(date.getFullYear(),date.getMonth(),date.getDate(),h,m),end=new Date(date.getFullYear(),date.getMonth(),date.getDate(),eh,em);if(end<=start)end.setDate(end.getDate()+1);
+ return {start,end};
+}
 function parseQGendaICS(raw){
  if(typeof raw!=='string'||raw.length>5_000_000||!raw.includes('BEGIN:VCALENDAR'))throw new Error('QGenda did not return a calendar. Check your subscription link.');
  ICAL.TimezoneService.reset();
@@ -34,16 +65,22 @@ function parseQGendaICS(raw){
   const rank=Number(c.getFirstPropertyValue('sequence')||0);
   const prior=versions.get(key);if(!prior||rank>=Number(prior.getFirstPropertyValue('sequence')||0))versions.set(key,c);
  }
- const components=[...versions.values()];const events=[];
+ const components=[...versions.values()];const events=[];const profiles=[];
  const add=(item,start,end)=>{
   if(String(item.component.getFirstPropertyValue('status')).toUpperCase()==='CANCELLED')return;
-  const a=calendarTime(start,item.component.getFirstProperty('dtstart')),z=calendarTime(end,item.component.getFirstProperty('dtend')||item.component.getFirstProperty('dtstart'));
+  let a=calendarTime(start,item.component.getFirstProperty('dtstart')),z=calendarTime(end,item.component.getFirstProperty('dtend')||item.component.getFirstProperty('dtstart'));
   if(z<=winStart()||a>=winEnd())return;
   // Availability blocks are not assignments, including QGenda's all-day blocks.
   if(/\bunavailable\b/i.test(item.summary||''))return;
-  if(start.isDate||end.isDate)throw new Error('Your QGenda calendar contains all-day events. In QGenda calendar sync, turn off “Sync as all-day events” and retry so shift hours can be filled accurately.');
+  if(start.isDate||end.isDate){
+   const times=explicitClockRange((item.summary||'')+'\n'+(item.description||''),a);
+   if(!times)throw new Error('Your QGenda calendar contains all-day events without clear shift times. In QGenda calendar sync, turn off “Sync as all-day events” and retry so shift hours can be filled accurately.');
+   a=times.start;z=times.end;
+  }
   if(!Number.isFinite(+a)||!Number.isFinite(+z)||z<=a||z-a>864e5)throw new Error('A shift has missing or invalid start/end times. Correct the QGenda calendar before importing.');
-  events.push({start:a,end:z,name:item.summary||'QGenda shift'});
+  const data=labeledCalendarData(item.description);profiles.push(data);
+  const activity=CONFIG.rows.find(r=>r.code===String(data.activity||'').padStart(5,'0'))?.r||'1';
+  events.push({start:a,end:z,name:item.summary||'QGenda shift',costCenter:data.costCenter||'',activity});
  };
  for(const c of components){
   if(c.hasProperty('recurrence-id')){
@@ -61,6 +98,13 @@ function parseQGendaICS(raw){
    }
   }else add(e,e.startDate,e.endDate);
  }
+ const names=[...new Set(profiles.map(p=>p.name).filter(Boolean))];
+ const ids=[...new Set(profiles.map(p=>p.p_emp).filter(Boolean))];
+ if(names.length>1||ids.length>1)throw new Error('This calendar contains multiple staff identities. Use your personal QGenda subscription link.');
+ const profile={};
+ for(const key of PFIELDS){if(key==='variance')continue;const values=[...new Set(profiles.map(p=>p[key]).filter(Boolean))];if(values.length===1)profile[key]=values[0];}
+ Object.assign(profile,nameFields(names[0]));
+ events.profile=profile;
  return events.sort((a,b)=>a.start-b.start);
 }
 async function importQGenda(){
@@ -72,7 +116,7 @@ async function importQGenda(){
   if(!response.ok)throw new Error('QGenda could not be reached. Check the link and try again, or import a calendar file below.');
   const events=parseQGendaICS(await response.text());
   if(!events.length)throw new Error('No shifts found for September 24–30. Check that this is your personal calendar and the schedule is published. Existing entries were kept.');
-  ingestShifts(events);status.textContent=events.length+' shifts found. Times are shown in Pacific time.';
+  applyCalendarProfile(events.profile);ingestShifts(events);status.textContent=events.length+' shifts found. Times are shown in Pacific time.';
   $('qgendaurl').value='';
   if(applyShifts()){go(3);$('importnotice').textContent='QGenda filled the week below. Confirm actual paid hours and activity allocation; edit only exceptions.';}
  }catch(e){status.textContent=e instanceof TypeError?'The calendar could not be loaded. Try again or import a calendar file below.':e.name==='AbortError'?'QGenda is unavailable or slow. Try again or import a calendar file below.':e.message;}
@@ -80,7 +124,7 @@ async function importQGenda(){
 }
 async function importCalendarFile(file){
  if(!file)return;
- try{if(file.size>5_000_000)throw new Error('Calendar file is too large.');const events=parseQGendaICS(await file.text());if(!events.length)throw new Error('No shifts in this study week. Existing entries were kept.');ingestShifts(events);if(applyShifts())go(3);}
+ try{if(file.size>5_000_000)throw new Error('Calendar file is too large.');const events=parseQGendaICS(await file.text());if(!events.length)throw new Error('No shifts in this study week. Existing entries were kept.');applyCalendarProfile(events.profile);ingestShifts(events);if(applyShifts())go(3);}
  catch(e){$('qgendastatus').textContent=e.message;}
 }
 function confirmWeek(){
@@ -96,6 +140,14 @@ function confirmWeek(){
 function fillMissingCostCenters(){
  const cc=$('cc_'+$('cc_default').value)?.value.trim();if(!cc)return;
  for(const D of CONFIG.days)for(const R of CONFIG.rows)for(const e of S.hours[D.d][R.r])if(Number(e.h)>0&&!e.c.trim()){e.c=cc;S.reviewed[D.d]=false;}
+}
+function renderMissingDetails(){
+ const fields={p_first:'First name',p_last:'Last name',p_emp:'Employee number',p_fac:'Facility / hospital',p_dept:'Department',p_job:'Position (PA / NP)',p_hpw:'Normal paid hours per week',p_phone:'Telephone number'};
+ let missing=Object.entries(fields).filter(([id])=>!$(id).value.trim());
+ const missingCC=CONFIG.days.some(D=>CONFIG.rows.some(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0&&!e.c.trim())));
+ if(missingCC)missing.push(['cc_'+$('cc_default').value,'Cost center for these shifts']);
+ $('missingdetails').innerHTML=missing.map(([id,label])=>`<div><label for="gap_${id}">${label}</label><input id="gap_${id}" data-field="${id}" ${id==='p_hpw'?'type="number" min="0" max="168" step="0.25"':''} value="${esc($(id).value)}" oninput="$('${id}').value=this.value;saveState();renderChecks(false)" onchange="fillMissingCostCenters();saveState();renderChecks(false)"></div>`).join('');
+ $('missingwrap').classList.toggle('hidden',!missing.length);
 }
 async function importProviderPDF(bytes){
  const doc=await PDFLib.PDFDocument.load(bytes),f=doc.getForm();
