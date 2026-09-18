@@ -30,3 +30,9 @@ PDF generation and prior-form extraction happen locally with pinned pdf-lib 1.17
 Mike's latest explicit request is a public link he can send to anyone. This authorizes publishing the preparation helper; it does not authorize sending messages, signing or submitting studies. Publish the current branch as a fast-forward to main and remove the broken custom-domain binding so GitHub Pages serves https://mikedmote52.github.io/timestudy/. No force push or repository visibility changes. Validate the public page and PDF assets after deployment. The old timestudy.moteops.tech DNS remains a separate unresolved issue.
 
 No AHS DocuSign API connection is configured. Signing and submission require the official AHS process shown in the app. The site is an independent helper, not an official AHS service.
+
+## Workplace coding, September 18 update
+
+Colleagues no longer have to supply an accounting code in the missing-details screen. Matching Highland ED shift names reuse17013 from the local April22–28,2026 filled AHS form (ER Dept Code and activity CCC fields). The source is a previous form, not a currently verified department directory; UI discloses this. No personal data or prior PDF is published. Named location choice also fills missing patient-care codes. Existing explicit codes remain untouched; mixed or unrecognized locations are not guessed. Nonpatient activities are not automatically assigned this clinical-location code.
+
+Unresolved coding permits only an explicitly named coordinator-review draft with an extra warning cover; regular export still rejects missing codes. Both signatures remain blank. Actual hours, review, identity and variance checks still apply. Email text becomes a coding-review request while codes are pending; no email is sent. Forty tests pass, including mapping scope, preservation, mixed locations and draft safeguards.

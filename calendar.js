@@ -134,21 +134,41 @@ function confirmWeek(){
  const zero=CONFIG.days.filter(D=>dayTotal(D.d)===0);
  const oldPaid={...S.paid},oldOff={...S.off};
  zero.forEach(D=>{S.paid[D.d]='0';S.off[D.d]=true;});
- const errors=CONFIG.days.flatMap(D=>dayErrors(D.d).map(e=>D.tt+': '+e));
+ const errors=CONFIG.days.flatMap(D=>dayErrors(D.d,{allowMissingCostCenters:true}).map(e=>D.tt+': '+e));
  if(errors.length){S.paid=oldPaid;S.off=oldOff;alert(errors.join('\n'));return false;}
  CONFIG.days.forEach(D=>S.reviewed[D.d]=true);saveState();renderChecks();return true;
 }
 function fillMissingCostCenters(){
- const cc=$('cc_'+$('cc_default').value)?.value.trim();if(!cc)return;
- for(const D of CONFIG.days)for(const R of CONFIG.rows)for(const e of S.hours[D.d][R.r])if(Number(e.h)>0&&!e.c.trim()){e.c=cc;S.reviewed[D.d]=false;}
+ const cc=$('cc_'+$('cc_default').value)?.value.trim();
+ for(const D of CONFIG.days){
+  const start=new Date(D.date+'T00:00:00'),end=new Date(start);end.setDate(end.getDate()+1);
+  const shifts=S.shifts.filter(s=>s.use&&new Date(s.start)<end&&new Date(s.end)>start);
+  const fromSchedule=shifts.length&&shifts.every(s=>locationForShift(s.name)==='highland-ed');
+  for(const R of CONFIG.rows)for(const e of S.hours[D.d][R.r])if(Number(e.h)>0&&!e.c.trim()){
+   const mapped=R.r==='1'&&(S.locationChoice==='highland-ed'||fromSchedule)?'17013':'';
+   if(mapped||cc){e.c=mapped||cc;S.reviewed[D.d]=false;if(mapped)S.usedPriorLocation=true;}
+  }
+ }
+}
+// Reused setting from the user's saved April 22–28, 2026 AHS time study.
+// This is prior-form evidence, not an independently verified AHS department directory.
+function locationForShift(name){return /\bhighland\b/i.test(name)&&/\b(?:ED|ER|emergency)\b/i.test(name)?'highland-ed':'';}
+function hasMissingCostCenters(){return CONFIG.days.some(D=>CONFIG.rows.some(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0&&!e.c.trim())));}
+function chooseWorkLocation(value){
+ S.locationChoice=value;fillMissingCostCenters();saveState();renderChecks();
+}
+function renderWorkLocation(){
+ const pending=hasMissingCostCenters();
+ $('locationhelp').innerHTML=pending?`<h2>Where did you work?</h2><p class="sub">Choose the workplace, no accounting code needed. We reuse the saved setting when available.</p><label for="worklocation">Workplace for patient-care hours still missing a code</label><select id="worklocation" onchange="chooseWorkLocation(this.value)"><option value="">Choose a workplace…</option value="highland-ed" ${S.locationChoice==='highland-ed'?'selected':''}>Highland Hospital · Emergency Department</option><option value="other" ${S.locationChoice==='other'?'selected':''}>Another department or multiple locations</option></select><p class="muted" style="margin-top:10px">If your workplace is not listed, you can still download the prepared draft. It will clearly flag the missing code for coordinator review before signing. No guessed code is inserted.</p>`:S.usedPriorLocation?'<p>Highland Emergency coding filled from a previous AHS time study. <span class="muted">Prior April 2026 setting; not independently reverified. You can change it in saved details or Edit.</span></p>':'';
+ $('locationhelp').classList.toggle('hidden',!pending&&!S.usedPriorLocation);
+ $('genbtn').textContent=pending?'Download draft for coordinator review':'Download PDF to review and sign';
 }
 function renderMissingDetails(){
  const fields={p_first:'First name',p_last:'Last name',p_emp:'Employee number',p_fac:'Facility / hospital',p_dept:'Department',p_job:'Position (PA / NP)',p_hpw:'Normal paid hours per week',p_phone:'Telephone number'};
  let missing=Object.entries(fields).filter(([id])=>!$(id).value.trim());
- const missingCC=CONFIG.days.some(D=>CONFIG.rows.some(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0&&!e.c.trim())));
- if(missingCC)missing.push(['cc_'+$('cc_default').value,'Cost center for these shifts']);
  $('missingdetails').innerHTML=missing.map(([id,label])=>`<div><label for="gap_${id}">${label}</label><input id="gap_${id}" data-field="${id}" ${id==='p_hpw'?'type="number" min="0" max="168" step="0.25"':''} value="${esc($(id).value)}" oninput="$('${id}').value=this.value;saveState();renderChecks(false)" onchange="fillMissingCostCenters();saveState();renderChecks(false)"></div>`).join('');
  $('missingwrap').classList.toggle('hidden',!missing.length);
+ renderWorkLocation();
 }
 async function importProviderPDF(bytes){
  const doc=await PDFLib.PDFDocument.load(bytes),f=doc.getForm();

@@ -164,6 +164,7 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
     <details><summary>Check imported shift dates and times</summary><div id="reviewshifts"></div></details>
     <p id="importnotice" class="banner info">QGenda provides scheduled hours. Confirm they match actual paid time, including any changed shifts, unpaid breaks, other activities or paid leave.</p>
     <div id="profilegap" class="hidden"><span id="profilegaptext"></span></div><div id="missingwrap" class="card hidden" style="background:#f4f8f8"><h2>Just the details we couldn’t find</h2><p class="sub">Fill these once. They are reused when you return on this browser. A previous completed form can fill them too.</p><div id="missingdetails" class="grid2"></div><button class="btn sec sm" style="margin-top:12px" onclick="go(0)">Reuse a previous form or edit saved details</button></div>
+    <div id="locationhelp" class="card hidden" style="background:#eef6f4"></div>
     <div id="weeksummary"></div>
     <p class="muted">By confirming, I have checked all seven days against actual paid time and activity codes. Dates with zero hours were not worked and were unpaid.</p>
     <button class="btn sec" style="margin:12px 0" onclick="confirmWeek()">Confirm the whole week</button>
@@ -195,8 +196,8 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
 <footer>An independent helper by MoteOps, not an official AHS system. Provider details and imported shifts stay in this browser. QGenda link import uses the MoteOps relay. Email buttons hand your draft text to your chosen email service. No patient information is needed. Questions about study requirements: pnpptimestudies@alamedahealthsystem.org</footer>
 
 <script src="assets/pdf-lib.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=20260918-location1"></script>
 <script src="assets/ical.min.js"></script>
-<script src="calendar.js"></script>
+<script src="calendar.js?v=20260918-location1"></script>
 </body>
 </html>
