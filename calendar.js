@@ -154,13 +154,10 @@ function fillMissingCostCenters(){
 // This is prior-form evidence, not an independently verified AHS department directory.
 function locationForShift(name){return /\bhighland\b/i.test(name)&&/\b(?:ED|ER|emergency)\b/i.test(name)?'highland-ed':'';}
 function hasMissingCostCenters(){return CONFIG.days.some(D=>CONFIG.rows.some(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0&&!e.c.trim())));}
-function chooseWorkLocation(value){
- S.locationChoice=value;fillMissingCostCenters();saveState();renderChecks();
-}
 function renderWorkLocation(){
  const pending=hasMissingCostCenters();
- $('locationhelp').innerHTML=pending?`<h2>Where did you work?</h2><p class="sub">Choose the workplace, no accounting code needed. We reuse the saved setting when available.</p><label for="worklocation">Workplace for patient-care hours still missing a code</label><select id="worklocation" onchange="chooseWorkLocation(this.value)"><option value="">Choose a workplace…</option value="highland-ed" ${S.locationChoice==='highland-ed'?'selected':''}>Highland Hospital · Emergency Department</option><option value="other" ${S.locationChoice==='other'?'selected':''}>Another department or multiple locations</option></select><p class="muted" style="margin-top:10px">If your workplace is not listed, you can still download the prepared draft. It will clearly flag the missing code for coordinator review before signing. No guessed code is inserted.</p>`:S.usedPriorLocation?'<p>Highland Emergency coding filled from a previous AHS time study. <span class="muted">Prior April 2026 setting; not independently reverified. You can change it in saved details or Edit.</span></p>':'';
- $('locationhelp').classList.toggle('hidden',!pending&&!S.usedPriorLocation);
+ $('locationhelp').innerHTML=S.usedPriorLocation?'<p class="muted">Highland Emergency coding uses the prior April 2026 form setting, not independently reverified. You can change it in saved details or Edit.</p>':'';
+ $('locationhelp').classList.toggle('hidden',!S.usedPriorLocation);
  $('genbtn').textContent=pending?'Download draft for coordinator review':'Download PDF to review and sign';
 }
 function renderMissingDetails(){
