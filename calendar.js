@@ -69,14 +69,15 @@ function parseQGendaICS(raw){
  const add=(item,start,end)=>{
   if(String(item.component.getFirstPropertyValue('status')).toUpperCase()==='CANCELLED')return;
   let a=calendarTime(start,item.component.getFirstProperty('dtstart')),z=calendarTime(end,item.component.getFirstProperty('dtend')||item.component.getFirstProperty('dtstart'));
-  if(z<=winStart()||a>=winEnd())return;
+  if(z<winStart()||a>=winEnd())return;
   // Availability blocks are not assignments, including QGenda's all-day blocks.
   if(/\bunavailable\b/i.test(item.summary||''))return;
   if(start.isDate||end.isDate){
    const times=explicitClockRange((item.summary||'')+'\n'+(item.description||''),a);
-   if(!times)throw new Error('Your QGenda calendar contains all-day events without clear shift times. In QGenda calendar sync, turn off “Sync as all-day events” and retry so shift hours can be filled accurately.');
+   if(!times){if(z<=winStart())return;throw new Error('Your QGenda calendar contains all-day events without clear shift times. In QGenda calendar sync, turn off “Sync as all-day events” and retry so shift hours can be filled accurately.');}
    a=times.start;z=times.end;
   }
+  if(z<=winStart()||a>=winEnd())return;
   if(!Number.isFinite(+a)||!Number.isFinite(+z)||z<=a||z-a>864e5)throw new Error('A shift has missing or invalid start/end times. Correct the QGenda calendar before importing.');
   const data=labeledCalendarData(item.description);profiles.push(data);
   const activity=CONFIG.rows.find(r=>r.code===String(data.activity||'').padStart(5,'0'))?.r||'1';
