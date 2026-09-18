@@ -61,9 +61,9 @@ function applyPeriod(startISO){
  if(startISO!=="2026-09-24")throw new Error("This version uses the September 24–30, 2026 official form only.");
  CONFIG.days=daysFromStart(startISO);CONFIG.sfy="2026-27";CONFIG.quarter="Q1";CONFIG.tsDates="September 24 - 30, 2026";
 }
-const STEPNAMES=["Your details","Shifts (optional)","Daily hours","Review & finish"];
-function renderSteps(){ $("steps").innerHTML=STEPNAMES.map((n,i)=>`<button type="button" class="step ${i===S.step?'active':''}" ${i===S.step?'aria-current="step"':''} onclick="go(${i})">${i+1}. ${n}</button>`).join(""); }
-function go(i){saveState();S.step=i;for(let k=0;k<4;k++)$("panel"+k).classList.toggle("hidden",k!==i);renderSteps();if(i===1)renderShifts();if(i===2)renderGrid();if(i===3)renderChecks();window.scrollTo(0,0);}
+const STEPNAMES=["Your details","QGenda link","Edit exceptions","Review & DocuSign"];
+function renderSteps(){ $("steps").innerHTML=[1,3,0,2].map(i=>`<button type="button" class="step ${i===S.step?'active':''}" ${i===S.step?'aria-current="step"':''} onclick="go(${i})">${STEPNAMES[i]}</button>`).join(""); }
+function go(i){if(i===3&&typeof fillMissingCostCenters==='function')fillMissingCostCenters();saveState();S.step=i;for(let k=0;k<4;k++)$("panel"+k).classList.toggle("hidden",k!==i);renderSteps();if(i===1)renderShifts();if(i===2)renderGrid();if(i===3)renderChecks();window.scrollTo(0,0);}
 function copyLink(){
  const url="https://timestudy.moteops.tech/?study=2026-09-24";
  const done=()=>{$("savestatus").textContent="Colleague link copied. It contains no personal details.";};
@@ -124,10 +124,11 @@ function parseTxtRegex(raw){
   if(misses.length) alert("Added "+evs.length+" shift(s). Skipped:\n\u2022 "+misses.join("\n\u2022 "));
   ingestShifts(evs);
 }
+function wallISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
 function ingestShifts(evs){
   const t0=winStart(), t1=winEnd();
   const kept=evs.filter(e=>e.end>t0 && e.start<t1).sort((a,b)=>a.start-b.start);
-  S.shifts=kept.map(e=>({start:e.start.toISOString(),end:e.end.toISOString(),name:e.name,use:true}));
+  S.shifts=kept.map(e=>({start:wallISO(e.start),end:wallISO(e.end),name:e.name,use:true}));
   saveState();renderShifts();
   if(!kept.length) alert("Import worked, but found no events inside the study week.");
 }
@@ -155,7 +156,7 @@ function applyShifts(){
  for(const s of selected){const a=new Date(s.start),z=new Date(s.end);for(const D of CONFIG.days){const [Y,M,Dd]=D.date.split("-").map(Number);const lo=Math.max(a,new Date(Y,M-1,Dd)),hi=Math.min(z,new Date(Y,M-1,Dd+1));if(hi>lo)perDay[D.d]+=(hi-lo)/3600000;}}
  S.hours=blank();S.specify={};S.reviewed={};S.off={};S.paid={};
  CONFIG.days.forEach(D=>{const h=round25(perDay[D.d]);if(h>0){S.hours[D.d]["1"]=[{h:h.toFixed(2),c:ccVal}];S.paid[D.d]=h.toFixed(2);}});
- saveState();$("importmessage").textContent="Draft hours added. Review each day, unpaid breaks and activity allocation in Daily hours.";
+ saveState();$("importmessage").textContent="Draft hours added. Review the whole week together, and edit any unpaid breaks or different activities.";return true;
 }
 /* ================= HOURS GRID ================= */
 function dayTotal(d){ let t=0; CONFIG.rows.forEach(R=>S.hours[d][R.r].forEach(e=>t+=parseFloat(e.h)||0)); return t; }
@@ -220,9 +221,11 @@ function checks(){
  return out;
 }
 function renderChecks(){
+ if($("reviewshifts"))$("reviewshifts").innerHTML=S.shifts.filter(s=>s.use).map(s=>`<p>${esc(s.name)} · ${esc(new Date(s.start).toLocaleString())} → ${esc(new Date(s.end).toLocaleString())} (Pacific)</p>`).join("")||"<p>No calendar imported.</p>";
  $("checks").innerHTML=checks().map(c=>`<li class="${c.ok?'pass':'fail'}">${c.t}</li>`).join("");
  const total=CONFIG.days.reduce((v,D)=>v+dayTotal(D.d),0),normal=Number($("p_hpw").value)||0;
- $("weeksummary").innerHTML=`<b>${total.toFixed(2)} hours reported</b> · ${normal.toFixed(2)} normal weekly hours<table><tr><th>Date</th><th>Hours</th><th>Status</th></tr>${CONFIG.days.map(D=>`<tr><td>${D.label} ${D.tt}</td><td>${dayTotal(D.d).toFixed(2)}</td><td>${S.reviewed[D.d]&&!dayErrors(D.d).length?(S.off[D.d]?'Unpaid day confirmed':'Checked'):'Needs review'}</td></tr>`).join('')}</table>`;
+ $("weeksummary").innerHTML=`<b>${total.toFixed(2)} hours prepared</b> · ${normal.toFixed(2)} normal weekly hours<table><tr><th>Date</th><th>Hours / activity</th><th></th></tr>${CONFIG.days.map(D=>`<tr><td>${D.label} ${D.tt}</td><td>${dayTotal(D.d).toFixed(2)} h<br><span class="muted">${CONFIG.rows.filter(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0)).map(R=>esc(R.name)+' · '+S.hours[D.d][R.r].filter(e=>Number(e.h)>0).map(e=>esc(e.h)+'h / '+esc(e.c||'cost center needed')).join(', ')).join('<br>')||(S.reviewed[D.d]&&S.off[D.d]?'Not worked / unpaid':'No hours entered — confirm unpaid or edit')}${S.reviewed[D.d]&&!dayErrors(D.d).length?' ✓':''}</span></td><td><button class="btn sec sm" onclick="S.day=${D.d};go(2)">Edit</button></td></tr>`).join('')}</table>`;
+ if($('profilegap')){const missing=checks().slice(0,5).filter(c=>!c.ok);$('profilegap').classList.toggle('hidden',!missing.length);$('profilegaptext').textContent=missing.map(c=>c.t.replace(' entered','')).join('; ');}
  $("variancewrap").classList.toggle("hidden",total===normal);
 }
 function mailParts(){ const last=$("p_last").value||"", first=$("p_first").value||"";

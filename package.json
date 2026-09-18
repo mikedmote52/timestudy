@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/mikedmote52/timestudy#readme",
   "dependencies": {
+    "ical.js": "2.2.1",
     "pdf-lib": "1.17.1"
   },
   "devDependencies": {

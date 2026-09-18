@@ -4,22 +4,26 @@ Local release candidate. Not yet published. The production hostname currently re
 
 ## Colleague workflow
 
-1. Enter provider details once.
-2. Optionally type dated shifts. Review the preview, then explicitly apply them as draft patient-care hours. Overnight time is split at midnight and limited to the study window. Alternatively enter daily activity hours directly.
-3. Review all seven days. Activity hours must match actual paid hours. Paid leave uses code 00010; unpaid days require an explicit action. Other activity codes and up to three cost-center splits remain available.
-4. Download the filled, unsigned official PDF. Review it, sign using the AHS DocuSign instructions, obtain supervisor/reviewer approval as required, and attach the signed PDF to an email to PNPPTimeStudies. Email buttons only prepare a draft.
+1. Paste a personal QGenda calendar subscription URL. The existing MoteOps relay retrieves the calendar. The app prepares September 24–30 automatically and opens the week summary. Calendar-file import and typed shifts remain fallbacks.
+2. Reuse provider details from a previous fillable AHS form, if needed. The current email attachment has these fields blank; it is not a colleague roster. Only profile fields are imported, never previous hours or signatures. Saved details are reused in this browser.
+3. Review the week once. QGenda scheduled hours start as draft code 00001; correct paid leave, on-call treatment, unpaid breaks and other activities before confirming. Availability blocks labeled Unavailable are excluded. Zero days become unpaid only after explicit whole-week confirmation. Individual exception editing remains available.
+4. Download the completed, unsigned 19-page official PDF. Sign with AHS DocuSign, obtain required supervisor/reviewer signature and return via the AHS process. No automatic submission occurs.
 
-The current form has shared identity fields and a new hours-mismatch justification field. The old app used different field names and silently ignored failures. This exporter fails visibly on a required missing field, leaves both official signature fields untouched, and crosses out explicitly unpaid days.
+## Unfinished requirements
+
+The user wants literal QGenda link → prepared form → DocuSign signature. This preview does not yet deliver that entire experience. There is no authorized AHS DocuSign API connection, so download/upload is still necessary. Embedded signing needs an authorized account and integration, envelope creation and recipient signing sessions. Do not substitute a drawn signature: Mike explicitly chose AHS DocuSign because acceptance of other signatures is unknown.
+
+The email's current attachment has blank provider identifiers, normal paid weekly hours and cost centers. A personalized prior form or an authorized roster is needed to eliminate one-time missing-field entry. QGenda contains scheduled assignments, not proof of actual paid activities.
 
 ## Privacy and persistence
 
-No server, account, external parser, calendar token, analytics or sending relay is used. PDF generation occurs in the browser with a locally bundled, pinned pdf-lib 1.17.1. The existing external calendar and sending controls were removed because they were unconfigured or introduced unnecessary dependencies. Entries are saved in localStorage per study. They do not sync between devices. Clear this device removes app drafts and legacy saved signatures. The colleague link contains only the study date.
+The private subscription link is sent only to the existing MoteOps relay at timestudy-relay.mikedmote5258.workers.dev for retrieval; frontend accepts only HTTPS app.qgenda.com/ical links with a key (webcal is normalized). The key is not saved in localStorage or sharing links and is cleared after a successful import. Relay operator logging behavior is not verified. No analytics or AI parsing is used. The relay is live and rejects unrelated hosts; a real private feed has not been tested in this session.
 
-Old signatures and previous-period hours are never automatically reused. Opening email services hands draft text to the selected service. Patient data is not needed.
+PDF generation and prior-form extraction happen locally with pinned pdf-lib 1.17.1. Calendar parsing uses bundled ical.js 2.2.1. Calendar times are converted to Pacific dates independent of the browser zone. Cancellation revisions, recurrence exclusions and overnight boundaries are handled. Missing all-day shift times are rejected rather than invented. A failed import preserves reported hours. Draft entries stay in this browser and do not sync across devices. Clear this device removes app drafts and legacy signatures. Sharing links contain only the study date. Email buttons prepare text; they do not attach or send files.
 
 ## Validation completed
 
-18 automated regression/integration tests pass via `npm test`, including actual PDF generation and reopened fields. Chrome walkthrough verified entry, shift preview, seven-day review, persistence, PDF download, and phone layout at 390px. Sample PDF canonical fields and 31 related widgets agree, appearances are present, and employee/supervisor signature fields remain blank. Pages 4, 6 and 17 were visually inspected. No real time-study submission or outbound email was sent.
+28 automated tests pass in Pacific and Eastern time zones, including relay request construction, successful/failed import, date splitting, recurrence/cancellation behavior, blank signature preservation, profile import and actual PDF generation. Chrome synthetic ICS → prior-profile PDF → whole-week confirmation → PDF download completed. The resulting 19-page PDF contained 9 hours September 24 and 1 hour September 25 with both signatures blank. Synthetic browser data was cleared. No real signature, submission or outbound email occurred.
 
 ## Release remaining
 

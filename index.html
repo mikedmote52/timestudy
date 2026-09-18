@@ -79,15 +79,16 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
   <p>Alameda Health System · Non-Physician Practitioner (Non-UC) · SFY 2026-27 Q1 · September 24–30, 2026 · DHCS 5293</p>
 </header>
 <div class="wrap">
-  <div class="banner info"><b>September 24–30, 2026</b><br>Enter actual paid time each day, review the completed form, then sign and return it using the AHS process. No account or calendar connection needed.</div>
+  <div class="banner info"><b>September 24–30, 2026</b><br>Paste your personal QGenda calendar link. We prepare the week on the current AHS form. Review it once, then sign through AHS DocuSign.</div>
   <div class="utility"><span id="savestatus" role="status">Draft saved on this browser only.</span><button class="btn sm sec" onclick="copyLink()">Copy colleague link</button><button class="btn sm sec" onclick="clearDraft()">Clear this device</button></div>
   <div class="steps" id="steps" aria-label="Time study steps"></div>
 
   <!-- STEP 1: PROVIDER -->
   <section class="card" id="panel0">
-    <h2>1 · Provider information</h2>
-    <p class="sub">Enter your details once. They appear throughout the form and are saved only in this browser. Use Clear this device when finished on a shared computer.</p>
+    <h2>Your saved details</h2>
+    <p class="sub">Reuse a previous completed AHS form below, or fill only missing details. These details stay in this browser; a colleague link never includes them.</p>
     <div class="banner info">Official AHS form: DHCS 5293, revised May 2026. This version covers September 24–30 only. <a href="assets/ahs-2026-27-q1.pdf" target="_blank" rel="noopener">View the blank form and activity guide</a>.</div>
+    <label for="providerpdf">Reuse details from your previous completed time study PDF</label><input id="providerpdf" type="file" accept="application/pdf,.pdf" onchange="readProviderFile(this.files[0])"><p id="profilestatus" class="muted" role="status">Read locally on this device. Only provider details are copied; previous hours and signatures are excluded.</p><br>
     <div class="grid3">
       <div><label for="p_last">Last name</label><input id="p_last"></div>
       <div><label for="p_first">First name</label><input id="p_first"></div>
@@ -119,27 +120,36 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
         <select id="cc_default"><option value="ip">Inpatient</option><option value="op">Outpatient</option><option value="er">ER</option><option value="oth">Other</option></select>
       </div>
     </div>
-    <div class="nav"><span></span><button class="btn" onclick="go(1)">Next: schedule →</button></div>
+    <div class="nav"><span></span><button class="btn" onclick="go(3)">Return to prepared form →</button></div>
   </section>
 
   <!-- STEP 2: SCHEDULE -->
   <section class="card hidden" id="panel1">
-    <h2>2 · Start with your shifts</h2>
-    <p class="sub" id="schedsub">Optional shortcut. Type dates and shift times below, or skip to daily hours. Only actual paid time belongs on the final form.</p>
+    <h2>Start with your QGenda link</h2>
+    <p class="sub" id="schedsub">Your study week is already set: September 24–30, 2026. Import your personal calendar to fill all seven dates, shift hours and totals automatically.</p>
+    <label for="qgendaurl">Personal QGenda calendar subscription link</label>
+    <input id="qgendaurl" type="password" autocomplete="off" spellcheck="false" placeholder="https://app.qgenda.com/ical?key=…">
+    <p class="muted">Use QGenda’s calendar subscription URL, not the shared schedule page. Availability blocks labeled “Unavailable” are excluded. Turn off “Sync as all-day events” to include shift times.</p>
+    <button class="btn" id="qgendabtn" style="margin:14px 0" onclick="importQGenda()">Prepare my time study →</button>
+    <p class="muted">Import sends this private link to the MoteOps calendar relay to fetch QGenda. The link is not saved in your browser draft or included in sharing links. Imported shifts stay in this browser.</p>
+    <p id="qgendastatus" role="status" aria-live="polite" style="margin:12px 0"></p>
+    <details style="margin:18px 0"><summary>Use a calendar file or type shifts instead</summary>
+    <label for="calendarfile">QGenda calendar file (.ics)</label><input id="calendarfile" type="file" accept=".ics,text/calendar" onchange="importCalendarFile(this.files[0])"><br><br>
     <label for="txtshifts">Dates and start / end times, one shift per line</label>
     <textarea id="txtshifts" rows="4" placeholder="9/24 7am to 5pm&#10;9/25 3pm to 1am"></textarea>
     <p class="muted">Use 9/24 7am to 5pm or Thursday 0700-1700. Overnight shifts split at midnight. Use a day at a time. This parser runs on your device.</p>
     <button class="btn sec" onclick="parseTxt()">Read my shifts</button>
     <p id="importmessage" class="muted" role="status"></p>
+    </details>
     <div id="shiftlist" style="margin-top:16px"></div>
-    <button class="btn sec" id="applyshifts" onclick="applyShifts()" disabled>Use selected shifts as draft patient-care hours</button>
-    <p class="muted">This shortcut starts selected hours under code 00001. Review the allocation, subtract unpaid breaks, and move teaching, meetings or paid leave to the right activity. Going to the next step does not change your entries.</p>
+    <button class="btn sec" id="applyshifts" onclick="if(applyShifts())go(3)" disabled>Prepare form from selected shifts</button>
+    <p class="muted">This shortcut starts selected hours under code 00001. Confirm the allocation on your week summary. Edit any unpaid breaks, teaching, meetings or paid leave before signing.</p>
     <div class="nav"><button class="btn sec" onclick="go(0)">Back</button><button class="btn" onclick="go(2)">Continue to daily hours →</button></div>
   </section>
 
   <!-- STEP 3: HOURS -->
   <section class="card hidden" id="panel2">
-    <h2>3 · Daily hours by activity code</h2>
+    <h2>Edit an exception</h2>
     <p class="sub">Use quarter-hour increments (.25 = 15 minutes). Check every day against actual paid hours. Mark unpaid days explicitly. Paid sick or vacation time belongs under code 00010, not an unpaid day.</p>
     <div class="daytabs" id="daytabs"></div>
     <div id="daygrid"></div>
@@ -148,12 +158,17 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
 
   <!-- STEP 4: SIGN -->
   <section class="card hidden" id="panel3">
-    <h2>4 · Review, download, then sign</h2>
+    <h2>Your prepared time study</h2>
     <p class="sub">Your download is an <b>unsigned</b> copy of the current AHS form with your entries filled in. It is not submitted by this app.</p>
+    <details><summary>Check imported shift dates and times</summary><div id="reviewshifts"></div></details>
+    <p id="importnotice" class="banner info">QGenda provides scheduled hours. Confirm they match actual paid time, including any changed shifts, unpaid breaks, other activities or paid leave.</p>
+    <div id="profilegap" class="banner info hidden">AHS left these personal fields blank: <span id="profilegaptext"></span>.<br><button class="btn sec sm" onclick="go(0)">Reuse previous form or fill missing details</button></div>
     <div id="weeksummary"></div>
+    <p class="muted">By confirming, I have checked all seven days against actual paid time and activity codes. Dates with zero hours were not worked and were unpaid.</p>
+    <button class="btn sec" style="margin:12px 0" onclick="confirmWeek()">Confirm the whole week</button>
     <div id="variancewrap"><label for="variance">If reported hours differ from normal weekly hours, explain why</label><textarea id="variance" rows="2" maxlength="180" placeholder="For example: scheduled for fewer shifts during the study week."></textarea><p class="muted">This explanation appears in the new justification field on page 17.</p></div>
     <div class="card" style="margin-top:16px;background:#fbfdfd">
-      <h2 style="font-size:14px;margin-bottom:8px">Ready-to-download check</h2>
+      <h2 style="font-size:14px;margin-bottom:8px">Form completeness</h2>
       <ul class="checklist" id="checks"></ul>
     </div>
     <div class="banner err hidden" id="generr"></div>
@@ -162,7 +177,7 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
     </div>
     <div class="banner info hidden" id="genok" style="margin-top:12px"></div>
     <div class="card" style="margin-top:20px;background:#f4f8f8">
-      <h2>Finish using the AHS process</h2>
+      <h2>Sign with AHS DocuSign</h2><p class="sub">Direct transfer into AHS DocuSign is not connected. Download your prepared PDF, then upload it to DocuSign using the AHS process below.</p><a class="btn sec" href="https://www.docusign.com/" target="_blank" rel="noopener noreferrer">Open DocuSign</a>
       <ol class="finish"><li>Open the PDF and check every page.</li><li>Sign and date it on your last day worked. The AHS guide describes DocuSign: sign in with your AHS account, choose Start → Sign a Document, upload the PDF, and add Signature and Date Signed. <a href="assets/ahs-signing-guide.docx">Download AHS signing instructions</a>.</li><li>Follow the form’s supervisor/reviewer signature requirement, including the hours-difference confirmation if applicable.</li><li>Attach the signed copy to your email to <b>pnpptimestudies@alamedahealthsystem.org</b>. The buttons below prepare email text; they do not attach or send your form.</li></ol>
       <p class="muted">The signature block also confirms training before the study. The notice separately gives December 31, 2026 as the annual learning-module deadline. Contact PNPPTimeStudies if your training status is unclear.</p>
       <label>Prepare your submission email:</label><p class="muted">Using Outlook inside Citrix? Choose Copy email text and attach the signed PDF there.</p>
@@ -176,9 +191,11 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
     <div class="nav"><button class="btn sec" onclick="go(2)">← Back</button><span></span></div>
   </section>
 </div>
-<footer>An independent helper by MoteOps, not an official AHS system. Entries stay in this browser. Email buttons hand your draft text to your chosen email service. No patient information is needed. Questions about study requirements: pnpptimestudies@alamedahealthsystem.org</footer>
+<footer>An independent helper by MoteOps, not an official AHS system. Provider details and imported shifts stay in this browser. QGenda link import uses the MoteOps relay. Email buttons hand your draft text to your chosen email service. No patient information is needed. Questions about study requirements: pnpptimestudies@alamedahealthsystem.org</footer>
 
 <script src="assets/pdf-lib.min.js"></script>
 <script src="app.js"></script>
+<script src="assets/ical.min.js"></script>
+<script src="calendar.js"></script>
 </body>
 </html>
