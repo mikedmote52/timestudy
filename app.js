@@ -25,11 +25,13 @@ const $ = id => document.getElementById(id);
 const PFIELDS = ["p_last","p_first","p_mi","p_emp","p_fac","p_dept","p_job","p_hpw","p_phone","cc_ip","cc_op","cc_er","cc_oth_name","cc_oth","cc_default","variance"];
 function qKey(){ return CONFIG.sfy+"|"+CONFIG.quarter+"|"+CONFIG.days[0].date; }
 function saveState(){
-  const o={qkey:qKey(),p:{},hours:S.hours,specify:S.specify,shifts:S.shifts,reviewed:S.reviewed,paid:S.paid,off:S.off,locationChoice:S.locationChoice,usedPriorLocation:S.usedPriorLocation};
+  syncGeneratedVariance();
+  const o={qkey:qKey(),p:{},hours:S.hours,specify:S.specify,shifts:S.shifts,reviewed:S.reviewed,paid:S.paid,off:S.off,locationChoice:S.locationChoice,usedPriorLocation:S.usedPriorLocation,varianceSuggestion:S.varianceSuggestion};
   PFIELDS.forEach(k=>o.p[k]=$(k).value);
   try{localStorage.setItem("pnpp_ts_v2:"+qKey(),JSON.stringify(o));$("savestatus").textContent="Draft saved on this browser only.";}
   catch(e){$("savestatus").textContent="Draft could not be saved. Keep this page open until you download your form.";}
   $("genok").classList.add("hidden");
+  $("generr").classList.add("hidden");
 }
 function loadState(){
   try{
@@ -37,7 +39,7 @@ function loadState(){
     if(!o || o.qkey!==qKey())return;
     PFIELDS.forEach(k=>{if(o.p&&typeof o.p[k]==="string")$(k).value=o.p[k];});
     if(o.hours && CONFIG.days.every(D=>CONFIG.rows.every(R=>Array.isArray(o.hours[D.d]?.[R.r]))))S.hours=o.hours;
-    S.specify=o.specify||{};S.shifts=Array.isArray(o.shifts)?o.shifts:[];S.reviewed=o.reviewed||{};S.paid=o.paid||{};S.off=o.off||{};S.locationChoice=o.locationChoice||'';S.usedPriorLocation=!!o.usedPriorLocation;
+    S.specify=o.specify||{};S.shifts=Array.isArray(o.shifts)?o.shifts:[];S.reviewed=o.reviewed||{};S.paid=o.paid||{};S.off=o.off||{};S.locationChoice=o.locationChoice||'';S.usedPriorLocation=!!o.usedPriorLocation;S.varianceSuggestion=o.varianceSuggestion||null;
   }catch(e){$("savestatus").textContent="Saved draft could not be read. Check your entries before continuing.";}
 }
 function clearDraft(){
@@ -218,8 +220,36 @@ function dayErrors(d,{allowMissingCostCenters=false}={}){
  return [...new Set(errors)];
 }
 function reviewDay(d){const errors=dayErrors(d,{allowMissingCostCenters:true});if(errors.length){alert(errors.join("\n"));return;}S.reviewed[d]=true;saveState();renderGrid();}
+/* ================= HOURS EXPLANATION ================= */
+function varianceValues(){
+ const total=CONFIG.days.reduce((v,D)=>v+dayTotal(D.d),0),normal=Number($("p_hpw").value);
+ return {total,normal,basis:total+'|'+normal,valid:$("p_hpw").value!==''&&Number.isFinite(normal)&&normal>0&&normal<=168&&Number.isFinite(total)&&total>=0};
+}
+function scheduleExplanation(){
+ const {total,normal,valid}=varianceValues();if(!valid||total===normal)return '';
+ return `My shifts vary week to week. This study reports ${total.toFixed(2)} hours, ${Math.abs(total-normal).toFixed(2)} ${total>normal?'more':'fewer'} than my normal ${normal.toFixed(2)} weekly hours.`;
+}
+function syncGeneratedVariance(){
+ const previous=S.varianceSuggestion;if(!previous)return;
+ if($("variance").value!==previous.text){S.varianceSuggestion=null;return;}
+ if(previous.basis!==varianceValues().basis){$("variance").value='';S.varianceSuggestion=null;}
+}
+function useScheduleExplanation(){
+ const text=scheduleExplanation();if(!text)return;
+ $("variance").value=text;S.varianceSuggestion={text,basis:varianceValues().basis};saveState();renderChecks();
+ $("variance").focus();
+}
+function renderVariance(){
+ const {total,normal,valid}=varianceValues();
+ $("variancewrap").classList.toggle("hidden",!valid||total===normal);
+ $("variancecomparison").textContent=valid?`${total.toFixed(2)} reported hours compared with ${normal.toFixed(2)} normal weekly hours. AHS asks for the reason for this difference.`:'';
+ $("variancepreview").textContent=scheduleExplanation();
+ $("varianceSchedule").disabled=!scheduleExplanation()||$("variance").value===scheduleExplanation();
+}
+
 /* ================= CHECKS ================= */
 function checks({allowMissingCostCenters=false}={}){
+ syncGeneratedVariance();
  const out=[];
  for(const [keys,label] of [[['p_first','p_last'],'Provider name'],[['p_emp'],'Employee number'],[['p_fac','p_dept','p_job'],'Facility, department and position'],[['p_phone'],'Telephone number']])out.push({ok:keys.every(k=>$(k).value.trim()),t:label+" entered"});
  const normal=Number($("p_hpw").value);out.push({ok:$("p_hpw").value!==""&&Number.isFinite(normal)&&normal>0&&normal<=168&&normal*4===Math.round(normal*4),t:"Normal weekly paid hours entered in .25 increments"});
@@ -237,7 +267,7 @@ function renderChecks(refreshMissing=true){
  const total=CONFIG.days.reduce((v,D)=>v+dayTotal(D.d),0),normal=Number($("p_hpw").value)||0;
  $("weeksummary").innerHTML=`<b>${total.toFixed(2)} hours prepared</b> · ${normal.toFixed(2)} normal weekly hours<table><tr><th>Date</th><th>Hours / activity</th><th></th></tr>${CONFIG.days.map(D=>`<tr><td>${D.label} ${D.tt}</td><td>${dayTotal(D.d).toFixed(2)} h<br><span class="muted">${CONFIG.rows.filter(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0)).map(R=>esc(R.name)+' · '+S.hours[D.d][R.r].filter(e=>Number(e.h)>0).map(e=>esc(e.h)+'h / '+esc(e.c||'code pending coordinator review')).join(', ')).join('<br>')||(S.reviewed[D.d]&&S.off[D.d]?'Not worked / unpaid':'No hours entered — confirm unpaid or edit')}${S.reviewed[D.d]&&!dayErrors(D.d).length?' ✓':''}</span></td><td><button class="btn sec sm" onclick="S.day=${D.d};go(2)">Edit</button></td></tr>`).join('')}</table>`;
  if($('profilegap')){const missing=checks().slice(0,5).filter(c=>!c.ok);$('profilegap').classList.toggle('hidden',!missing.length);$('profilegaptext').textContent=missing.map(c=>c.t.replace(' entered','')).join('; ');}
- $("variancewrap").classList.toggle("hidden",total===normal);
+ renderVariance();
 }
 function mailParts(){
  if(hasMissingCostCenters())return {to:CONFIG.email,sub:'Cost-center review needed: PNPP '+CONFIG.sfy+' '+CONFIG.quarter,body:'Hello,\n\nPlease help confirm the cost-center codes for my prepared '+CONFIG.tsDates+' time-study draft. The draft cover identifies the affected dates. This is a request for coding review, not a final signed submission.\n\nThank you'};

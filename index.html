@@ -168,7 +168,15 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
     <div id="weeksummary"></div>
     <p class="muted">By confirming, I have checked all seven days against actual paid time and activity codes. Dates with zero hours were not worked and were unpaid.</p>
     <button class="btn sec" style="margin:12px 0" onclick="confirmWeek()">Confirm the whole week</button>
-    <div id="variancewrap"><label for="variance">If reported hours differ from normal weekly hours, explain why</label><textarea id="variance" rows="2" maxlength="180" placeholder="For example: scheduled for fewer shifts during the study week."></textarea><p class="muted">This explanation appears in the new justification field on page 17.</p></div>
+    <div id="variancewrap" class="card">
+      <h2>Explain the hours difference</h2>
+      <p id="variancecomparison"></p>
+      <p class="muted">If your shifts vary week to week, we can write this for you:</p>
+      <p id="variancepreview"></p>
+      <button type="button" id="varianceSchedule" class="btn sec" onclick="useScheduleExplanation()">My shifts vary week to week. Use this explanation.</button>
+      <p class="muted">Choose this only if it is accurate. Otherwise, enter the reason below.</p>
+      <label for="variance">Your explanation (you can edit it)</label><textarea id="variance" rows="2" maxlength="180" placeholder="For example: covered an extra shift, paid leave, or a change in normal hours."></textarea>
+    </div>
     <div class="card" style="margin-top:16px;background:#fbfdfd">
       <h2 style="font-size:14px;margin-bottom:8px">Form completeness</h2>
       <ul class="checklist" id="checks"></ul>
@@ -196,8 +204,8 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
 <footer>An independent helper by MoteOps, not an official AHS system. Provider details and imported shifts stay in this browser. QGenda link import uses the MoteOps relay. Email buttons hand your draft text to your chosen email service. No patient information is needed. Questions about study requirements: pnpptimestudies@alamedahealthsystem.org</footer>
 
 <script src="assets/pdf-lib.min.js"></script>
-<script src="app.js?v=20260918-location1"></script>
+<script src="app.js?v=20260918-review2"></script>
 <script src="assets/ical.min.js"></script>
-<script src="calendar.js?v=20260918-location1"></script>
+<script src="calendar.js?v=20260918-review2"></script>
 </body>
 </html>

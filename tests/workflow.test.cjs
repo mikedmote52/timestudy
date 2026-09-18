@@ -64,3 +64,26 @@ test('a recognizable work-location choice fills missing patient-care codes',asyn
 test('unmapped locations never inherit Highland code and can export only a marked draft',async()=>{const w=await app();seed(w);w.eval("S.hours[1]['1'][0].c='';S.shifts=[{start:'2026-09-24T07:00:00',end:'2026-09-24T17:00:00',name:'San Leandro ED',use:true}]");w.go(3);assert.equal(w.eval("S.hours[1]['1'][0].c"),'');await assert.rejects(()=>w.buildPDF(),/check/i);const result=await w.buildPDF({allowMissingCostCenters:true});assert.equal(result.draft,true);assert.match(result.fname,/DRAFT/);const doc=await w.PDFLib.PDFDocument.load(result.bytes);assert.equal(doc.getPageCount(),20);if(process.env.QA_COST_DRAFT)fs.writeFileSync(process.env.QA_COST_DRAFT,result.bytes);w.close();});
 test('location matching preserves explicitly supplied codes and avoids mixed-site guesses',async()=>{const w=await app();seed(w);w.eval("S.hours[1]['1'][0].c='OTHER';S.shifts=[{start:'2026-09-24T07:00:00',end:'2026-09-24T12:00:00',name:'Day ED Highland APP',use:true},{start:'2026-09-24T12:00:00',end:'2026-09-24T17:00:00',name:'Other hospital ED',use:true}]");w.go(3);assert.equal(w.eval("S.hours[1]['1'][0].c"),'OTHER');w.eval("S.hours[1]['1'][0].c=''");w.go(3);assert.equal(w.eval("S.hours[1]['1'][0].c"),'');w.close();});
 test('a coding-review draft cannot bypass invalid hours or missing identity',async()=>{const w=await app();seed(w);w.eval("S.hours[1]['1'][0].c='';S.hours[1]['1'][0].h='-1'");await assert.rejects(()=>w.buildPDF({allowMissingCostCenters:true}),/checks/);w.close();});
+
+test('varying-schedule explanation requires a choice and exports the calculated difference',async()=>{
+ const w=await app();seed(w);w.document.getElementById('p_hpw').value='30';w.go(3);
+ assert.equal(w.document.getElementById('variance').value,'');
+ const choice=w.document.getElementById('varianceSchedule');assert.ok(choice,'a ready-to-use reason should be offered');choice.click();
+ assert.equal(w.document.getElementById('variance').value,'My shifts vary week to week. This study reports 10.00 hours, 20.00 fewer than my normal 30.00 weekly hours.');
+ const {bytes}=await w.buildPDF();const doc=await w.PDFLib.PDFDocument.load(bytes);
+ assert.equal(doc.getForm().getTextField('Justification for "Normal Hours Per Week not matching Total Hours').getText(),w.document.getElementById('variance').value);w.close();
+});
+test('changing hours invalidates a generated explanation but preserves a personally edited reason',async()=>{
+ const w=await app();seed(w);w.document.getElementById('p_hpw').value='5';w.go(3);
+ const choice=w.document.getElementById('varianceSchedule');assert.ok(choice);choice.click();
+ assert.match(w.document.getElementById('variance').value,/5.00 more/);
+ w.document.getElementById('p_hpw').value='6';w.go(3);assert.equal(w.document.getElementById('variance').value,'');
+ w.document.getElementById('varianceSchedule').click();w.document.getElementById('variance').value='Covered an extra shift.';
+ w.document.getElementById('p_hpw').value='8';w.go(3);assert.equal(w.document.getElementById('variance').value,'Covered an extra shift.');w.close();
+});
+test('generated explanation remains protected against stale totals after reopening',async()=>{
+ let w=await app();seed(w);w.document.getElementById('p_hpw').value='30';w.go(3);
+ const choice=w.document.getElementById('varianceSchedule');assert.ok(choice);choice.click();
+ const stored={};for(const k of Object.keys(w.localStorage))stored[k]=JSON.parse(w.localStorage.getItem(k));w.close();w=await app(stored);
+ w.document.getElementById('p_hpw').value='40';assert.equal(w.checks().at(-1).ok,false);assert.equal(w.document.getElementById('variance').value,'');w.close();
+});
