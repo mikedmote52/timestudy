@@ -182,17 +182,9 @@ a.btn{text-decoration:none;text-align:center}.actions{display:flex;gap:10px;flex
     <details id="leaveeditor" class="card"><summary>Add paid leave missing from QGenda</summary><p class="muted">Enter paid hours only. The current AHS form uses 00010 for paid sick leave, vacation and other paid leave. This updates the paid-leave total on each selected day and keeps other activities.</p><div id="leavedays" class="leave-days"></div><label for="leavehours">Paid-leave hours on each selected day</label><input id="leavehours" type="number" min="0" max="24" step="0.25" placeholder="e.g. 8"><button class="btn sec" style="margin-top:12px" onclick="applyPaidLeave()">Apply paid leave</button><p id="leavestatus" role="status"></p></details>
     <p class="muted">By confirming, I have checked all seven days against actual paid time and activity codes. Dates with zero hours were not worked and were unpaid.</p>
     <button class="btn sec" style="margin:12px 0" onclick="confirmWeek()">Confirm the whole week</button>
-    <div id="variancewrap" class="card">
-      <h2>Explain the hours difference</h2>
-      <p id="variancecomparison"></p>
-      <p class="muted">If your shifts vary week to week, we can write this for you:</p>
-      <p id="variancepreview"></p>
-      <button type="button" id="varianceSchedule" class="btn sec" onclick="useScheduleExplanation()">My shifts vary week to week. Use this explanation.</button>
-      <p class="muted">Choose this only if it is accurate. Otherwise, enter the reason below.</p>
-      <label for="variance">Your explanation (you can edit it)</label><textarea id="variance" rows="2" maxlength="180" placeholder="For example: covered an extra shift, paid leave, or a change in normal hours."></textarea>
-    </div>
+    <input id="variance" type="hidden">
     <div class="card" style="margin-top:16px;background:#fbfdfd">
-      <h2 style="font-size:14px;margin-bottom:8px">Form completeness</h2>
+      <h2 style="font-size:14px;margin-bottom:8px">Review checks</h2>
       <ul class="checklist" id="checks"></ul>
     </div>
     <div class="banner err hidden" id="generr"></div>
@@ -223,8 +215,8 @@ a.btn{text-decoration:none;text-align:center}.actions{display:flex;gap:10px;flex
 <footer>An independent helper by MoteOps, not an official AHS system. Provider details and imported shifts stay in this browser. QGenda link import uses the MoteOps relay. Email buttons hand your draft text to your chosen email service. No patient information is needed. Questions about study requirements: pnpptimestudies@alamedahealthsystem.org</footer>
 
 <script src="assets/pdf-lib.min.js"></script>
-<script src="app.js?v=20261007-phone1"></script>
+<script src="app.js?v=20261007-simple2"></script>
 <script src="assets/ical.min.js"></script>
-<script src="calendar.js?v=20261007-phone1"></script>
+<script src="calendar.js?v=20261007-simple2"></script>
 </body>
 </html>

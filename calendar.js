@@ -158,10 +158,9 @@ function fillMissingCostCenters(){
 function locationForShift(name){return /\bhighland\b/i.test(name)&&/\b(?:ED|ER|emergency)\b/i.test(name)?'highland-ed':'';}
 function hasMissingCostCenters(){return CONFIG.days.some(D=>CONFIG.rows.some(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0&&!e.c.trim())));}
 function renderWorkLocation(){
- const pending=hasMissingCostCenters();
  $('locationhelp').innerHTML=S.usedPriorLocation?'<p class="muted">Highland Emergency coding uses the prior April 2026 form setting, not independently reverified. You can change it in saved details or Edit.</p>':'';
  $('locationhelp').classList.toggle('hidden',!S.usedPriorLocation);
- $('genbtn').textContent=pending?'Download draft for coordinator review':'Download PDF to review and sign';
+ $('genbtn').textContent='Download PDF to review and sign';
 }
 function renderMissingDetails(){
  const fields={p_first:'First name',p_last:'Last name',p_emp:'Employee number',p_fac:'Facility / hospital',p_dept:'Department',p_job:'Position (PA / NP)',p_hpw:'Normal paid hours per week',p_phone:'Telephone number'};

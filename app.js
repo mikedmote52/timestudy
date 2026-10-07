@@ -109,9 +109,8 @@ function clearPreparedDownload(){
  if($('pdfpreview'))$('pdfpreview').removeAttribute('href');if($('pdfsave'))$('pdfsave').removeAttribute('href');
 }
 function renderSigning(){
- const pending=hasMissingCostCenters();
- $('docusignlink').classList.toggle('hidden',pending);
- $('signingstatus').textContent=pending?'This copy needs cost-center review before signing. Download the marked draft and use the email buttons below to request coding help. Once the missing codes are completed, sign the corrected form through AHS DocuSign.':'Save the prepared PDF above, then open DocuSign. You will upload the saved file there; this app does not transfer it automatically.';
+ $('docusignlink').classList.remove('hidden');
+ $('signingstatus').textContent='Save the prepared PDF above, then open DocuSign. You will upload the saved file there; this app does not transfer it automatically.';
 }
 function offerPreparedDownload(bytes,fname,draft){
  clearPreparedDownload();const file=new File([bytes],fname,{type:'application/pdf'}),url=URL.createObjectURL(file);preparedDownload={file,url,draft};
@@ -121,7 +120,7 @@ function offerPreparedDownload(bytes,fname,draft){
 }
 async function sharePreparedPDF(){
  if(!preparedDownload)return;
- try{await navigator.share({files:[preparedDownload.file],title:preparedDownload.draft?'Time study draft for coding review':'Prepared AHS time study, unsigned'});}
+ try{await navigator.share({files:[preparedDownload.file],title:'Prepared AHS time study, unsigned'});}
  catch(e){if(e.name!=='AbortError'){$('genok').textContent='Sharing is unavailable. Use Save PDF again, then choose the saved file in DocuSign.';$('genok').classList.remove('hidden');}}
 }
 function cvAP(h,m,ap){ h=+h; m=+(m||0); ap=(ap||"").toLowerCase();
@@ -259,7 +258,7 @@ function qf(d,h){
  saveState();renderGrid();
 }
 function validHours(v){return v!==""&&v!=null&&Number.isFinite(Number(v))&&Number(v)>=0&&Number(v)<=24&&Math.abs(Number(v)*4-Math.round(Number(v)*4))<1e-9;}
-function dayErrors(d,{allowMissingCostCenters=false}={}){
+function dayErrors(d,{allowMissingCostCenters=true}={}){
  const errors=[];const total=dayTotal(d);
  if(!validHours(S.paid[d])||total>24||Math.abs(total-Number(S.paid[d]))>1e-9)errors.push("Activity hours must equal actual paid hours (0–24 in quarter-hours).");
  for(const R of CONFIG.rows){for(const e of S.hours[d][R.r]){
@@ -277,38 +276,18 @@ function varianceValues(){
  const total=CONFIG.days.reduce((v,D)=>v+dayTotal(D.d),0),normal=Number($("p_hpw").value);
  return {total,normal,basis:total+'|'+normal,valid:$("p_hpw").value!==''&&Number.isFinite(normal)&&normal>0&&normal<=168&&Number.isFinite(total)&&total>=0};
 }
-function scheduleExplanation(){
- const {total,normal,valid}=varianceValues();if(!valid||total===normal)return '';
- return `My shifts vary week to week. This study reports ${total.toFixed(2)} hours, ${Math.abs(total-normal).toFixed(2)} ${total>normal?'more':'fewer'} than my normal ${normal.toFixed(2)} weekly hours.`;
-}
 function syncGeneratedVariance(){
  const previous=S.varianceSuggestion;if(!previous)return;
  if($("variance").value!==previous.text){S.varianceSuggestion=null;return;}
  if(previous.basis!==varianceValues().basis){$("variance").value='';S.varianceSuggestion=null;}
 }
-function useScheduleExplanation(){
- const text=scheduleExplanation();if(!text)return;
- $("variance").value=text;S.varianceSuggestion={text,basis:varianceValues().basis};saveState();renderChecks();
- $("variance").focus();
-}
-function renderVariance(){
- const {total,normal,valid}=varianceValues();
- $("variancewrap").classList.toggle("hidden",!valid||total===normal);
- $("variancecomparison").textContent=valid?`${total.toFixed(2)} reported hours compared with ${normal.toFixed(2)} normal weekly hours. AHS asks for the reason for this difference.`:'';
- $("variancepreview").textContent=scheduleExplanation();
- $("varianceSchedule").disabled=!scheduleExplanation()||$("variance").value===scheduleExplanation();
-}
-
 /* ================= CHECKS ================= */
-function checks({allowMissingCostCenters=false}={}){
+function checks(){
  syncGeneratedVariance();
  const out=[];
  for(const [keys,label] of [[['p_first','p_last'],'Provider name'],[['p_emp'],'Employee number'],[['p_fac','p_dept','p_job'],'Facility, department and position'],[['p_phone'],'Telephone number']])out.push({ok:keys.every(k=>$(k).value.trim()),t:label+" entered"});
  const normal=Number($("p_hpw").value);out.push({ok:$("p_hpw").value!==""&&Number.isFinite(normal)&&normal>0&&normal<=168&&normal*4===Math.round(normal*4),t:"Normal weekly paid hours entered in .25 increments"});
- const total=CONFIG.days.reduce((v,D)=>v+dayTotal(D.d),0);
  out.push({ok:CONFIG.days.every(D=>S.reviewed[D.d]&&dayErrors(D.d,{allowMissingCostCenters:true}).length===0),t:"All 7 days checked; activity hours match paid hours, with unpaid days confirmed"});
- out.push({ok:allowMissingCostCenters||!hasMissingCostCenters(),t:"Workplace coding filled; otherwise download a draft for coordinator review"});
- out.push({ok:total===normal||$("variance").value.trim().length>0,t:"Explanation entered if reported hours differ from normal weekly hours"});
  return out;
 }
 function renderChecks(refreshMissing=true){
@@ -317,13 +296,11 @@ function renderChecks(refreshMissing=true){
  if($("reviewshifts"))$("reviewshifts").innerHTML=S.shifts.filter(s=>s.use).map(s=>`<p>${esc(s.name)} · ${esc(new Date(s.start).toLocaleString())} → ${esc(new Date(s.end).toLocaleString())} (Pacific)</p>`).join("")||"<p>No calendar imported.</p>";
  $("checks").innerHTML=checks().map(c=>`<li class="${c.ok?'pass':'fail'}">${c.t}</li>`).join("");
  const total=CONFIG.days.reduce((v,D)=>v+dayTotal(D.d),0),normal=Number($("p_hpw").value)||0;
- $("weeksummary").innerHTML=`<b>${total.toFixed(2)} hours prepared</b> · ${normal.toFixed(2)} normal weekly hours<table><tr><th>Date</th><th>Hours / activity</th><th></th></tr>${CONFIG.days.map(D=>`<tr><td>${D.label} ${D.tt}</td><td>${dayTotal(D.d).toFixed(2)} h<br><span class="muted">${CONFIG.rows.filter(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0)).map(R=>esc(R.name)+' · '+S.hours[D.d][R.r].filter(e=>Number(e.h)>0).map(e=>esc(e.h)+'h / '+esc(e.c||'code pending coordinator review')).join(', ')).join('<br>')||(S.reviewed[D.d]&&S.off[D.d]?'Not worked / unpaid':'No hours entered — confirm unpaid or edit')}${S.reviewed[D.d]&&!dayErrors(D.d).length?' ✓':''}</span></td><td><button class="btn sec sm" onclick="S.day=${D.d};go(2)">Edit</button></td></tr>`).join('')}</table>`;
+ $("weeksummary").innerHTML=`<b>${total.toFixed(2)} hours prepared</b> · ${normal.toFixed(2)} normal weekly hours<table><tr><th>Date</th><th>Hours / activity</th><th></th></tr>${CONFIG.days.map(D=>`<tr><td>${D.label} ${D.tt}</td><td>${dayTotal(D.d).toFixed(2)} h<br><span class="muted">${CONFIG.rows.filter(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0)).map(R=>esc(R.name)+' · '+S.hours[D.d][R.r].filter(e=>Number(e.h)>0).map(e=>esc(e.h)+'h'+(e.c?' / '+esc(e.c):'')).join(', ')).join('<br>')||(S.reviewed[D.d]&&S.off[D.d]?'Not worked / unpaid':'No hours entered — confirm unpaid or edit')}${S.reviewed[D.d]&&!dayErrors(D.d).length?' ✓':''}</span></td><td><button class="btn sec sm" onclick="S.day=${D.d};go(2)">Edit</button></td></tr>`).join('')}</table>`;
  if($('profilegap')){const missing=checks().slice(0,5).filter(c=>!c.ok);$('profilegap').classList.toggle('hidden',!missing.length);$('profilegaptext').textContent=missing.map(c=>c.t.replace(' entered','')).join('; ');}
- renderVariance();
  renderSigning();
 }
 function mailParts(){
- if(hasMissingCostCenters())return {to:CONFIG.email,sub:'Cost-center review needed: PNPP '+CONFIG.sfy+' '+CONFIG.quarter,body:'Hello,\n\nPlease help confirm the cost-center codes for my prepared '+CONFIG.tsDates+' time-study draft. The draft cover identifies the affected dates. This is a request for coding review, not a final signed submission.\n\nThank you'};
  const last=$("p_last").value||"", first=$("p_first").value||"";
   return { to: CONFIG.email,
     sub: "PNPP Time Study SFY "+CONFIG.sfy+" "+CONFIG.quarter+" - "+last+", "+first,
@@ -338,9 +315,8 @@ function openMail(how){ const m=mailParts();
 
 /* ================= PDF GENERATION ================= */
 const TEMPLATE = "assets/ahs-2026-27-q1.pdf";
-async function buildPDF({allowMissingCostCenters=false}={}){
-  const draft=allowMissingCostCenters&&hasMissingCostCenters();
-  const failures=checks({allowMissingCostCenters}).filter(c=>!c.ok);if(failures.length)throw new Error("Complete the review checks: "+failures.map(c=>c.t).join("; "));
+async function buildPDF(){
+  const failures=checks().filter(c=>!c.ok);if(failures.length)throw new Error("Complete the review checks: "+failures.map(c=>c.t).join("; "));
   const {PDFDocument, StandardFonts} = PDFLib;
   const response=await fetch(TEMPLATE);if(!response.ok)throw new Error("Current AHS form could not be loaded. Your draft is still here; try again.");
   const doc=await PDFDocument.load(await response.arrayBuffer());
@@ -392,25 +368,16 @@ async function buildPDF({allowMissingCostCenters=false}={}){
     }}
     const helv = await doc.embedFont(StandardFonts.Helvetica);
     form.updateFieldAppearances(helv);
-    if(draft){
-      const cover=doc.insertPage(0,[612,792]);
-      cover.drawText('DRAFT - COST CENTER REVIEW REQUIRED',{x:36,y:730,size:18,font:helv,color:PDFLib.rgb(.65,.15,.05)});
-      cover.drawText('Do not sign or submit until the missing codes are completed.',{x:36,y:690,size:12,font:helv});
-      cover.drawText('Prepared hours and provider details follow on the official form.',{x:36,y:665,size:12,font:helv});
-      const dates=CONFIG.days.filter(D=>CONFIG.rows.some(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0&&!e.c.trim()))).map(D=>D.tt).join(', ');
-      cover.drawText('Dates needing coding: '+dates,{x:36,y:625,size:11,font:helv});
-      cover.drawText('Coordinator: confirm the work locations and insert the correct codes.',{x:36,y:600,size:11,font:helv});
-    }
     const bytes = await doc.save();
   const P2={last:$("p_last").value};
   const fname="PNPP_TimeStudy_"+CONFIG.quarter+"_SFY"+CONFIG.sfy.replace("/","-")+"_"+((P2.last||"Form").replace(/\W+/g,""))+".pdf";
-  return {bytes,fname:draft?fname.replace(/\.pdf$/,'_DRAFT_COST_CENTER_REVIEW.pdf'):fname,signed:false,draft};
+  return {bytes,fname,signed:false,draft:false};
 }
 async function generatePDF(){
  const err=$("generr");err.classList.add("hidden");const btn=$("genbtn");
- try{btn.disabled=true;btn.textContent="Preparing PDF…";const {bytes,fname,draft}=await buildPDF({allowMissingCostCenters:hasMissingCostCenters()});const url=offerPreparedDownload(bytes,fname,draft);const a=document.createElement("a");a.href=url;a.download=fname;a.click();$("genok").textContent=draft?"Draft download requested. Missing codes are flagged on its cover. Have the coordinator complete the codes before signing or submitting.":"PDF download requested. Check your browser downloads, review the form, then sign and arrange supervisor/reviewer signature. Nothing has been submitted.";$("genok").classList.remove("hidden");}
+ try{btn.disabled=true;btn.textContent="Preparing PDF…";const {bytes,fname,draft}=await buildPDF();const url=offerPreparedDownload(bytes,fname,draft);const a=document.createElement("a");a.href=url;a.download=fname;a.click();$("genok").textContent="PDF download requested. Check your browser downloads, review the form, then sign and arrange supervisor/reviewer signature. Nothing has been submitted.";$("genok").classList.remove("hidden");}
  catch(e){err.textContent=e.message;err.classList.remove("hidden");renderChecks();}
- finally{btn.disabled=false;btn.textContent=hasMissingCostCenters()?"Download draft for coordinator review":"Download PDF to review and sign";}
+ finally{btn.disabled=false;btn.textContent="Download PDF to review and sign";}
 }
 applyPeriod("2026-09-24");loadState();renderSteps();
 PFIELDS.forEach(k=>$(k).addEventListener("input",()=>{saveState();if(S.step===3)renderChecks();}));
