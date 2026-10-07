@@ -1,40 +1,28 @@
-# AHS time-study helper, September 24–30, 2026
+# AHS time-study helper
 
-Public release target: https://mikedmote52.github.io/timestudy/. The previous custom hostname returns NXDOMAIN, so GitHub Pages will serve its default HTTPS URL. This version is tied to the exact current AHS attachment, DHCS 5293 revised 05/2026; a future study needs its official form checked before dates change.
+Public app: https://mikedmote52.github.io/timestudy/?study=2026-09-24
 
-## Colleague workflow
+Independent helper for the September 24–30, 2026 non-physician (Non-UC) study. Current AHS DHCS5293 template: May2026 revision,19pages. The October7 supplied copy is byte-identical to the bundled template.
 
-1. Paste a personal QGenda calendar subscription URL. Explicitly labeled provider details, per-shift cost centers and activity codes are imported where present. The app never infers normal weekly hours from a single schedule. Shared calendars with conflicting provider names or employee IDs are rejected. The existing MoteOps relay retrieves the calendar. The app prepares September 24–30 automatically and opens the week summary. Calendar-file import and typed shifts remain fallbacks.
-2. Reuse provider details from a previous fillable AHS form, if needed. The current email attachment has these fields blank; it is not a colleague roster. Only profile fields are imported, never previous hours or signatures. Saved details are reused in this browser.
-3. Review the week once. QGenda scheduled hours start as draft code 00001; correct paid leave, on-call treatment, unpaid breaks and other activities before confirming. Availability blocks labeled Unavailable are excluded. Zero days become unpaid only after explicit whole-week confirmation. Individual exception editing remains available.
-4. Download the completed, unsigned 19-page official PDF. Sign with AHS DocuSign, obtain required supervisor/reviewer signature and return via the AHS process. No automatic submission occurs.
+## Colleague flow
 
-## Signing and data limits
+1. Open the public link from a text or email, preferably in Safari or Chrome.
+2. Use Open QGenda to reach https://app.qgenda.com/UserSettings/CalendarConnections. Sign in, copy Your Subscription URL, return to the app and paste it.
+3. Prepare the week. The relay fetches the personal calendar. Scheduled hours, Pacific dates, overnight splits, explicit profile fields and activity/cost-center metadata fill automatically. Add missing details or import a previous completed PDF. A missing/expired historical calendar is not interpreted as an exemption.
+4. Review actual paid time and exceptions. The paid-leave shortcut updates selected dates under current-form code00010 without replacing worked activities. Ambiguous leave never silently becomes patient care. Confirm all7days; select or write the hours-variance reason if needed.
+5. Download the unsigned filledPDF, review it, save to Files/Downloads. Supported mobile browsers can also use the native file share sheet. Editing a draft invalidates old PDF links.
+6. Open DocuSign, sign in with AHS credentials, Start > Sign a Document > Upload, choose the saved file, add Signature and Date Signed on page17. Arrange supervisor/reviewer signature and return the signed form to PNPPTimeStudies. The app does not upload into DocuSign, sign, attach to email, or submit automatically.
 
-The user wants literal QGenda link → prepared form → DocuSign signature. The helper automates preparation and uses the existing AHS DocuSign download/upload process. There is no authorized AHS DocuSign API connection, so download/upload is still necessary. Embedded signing needs an authorized account and integration, envelope creation and recipient signing sessions. Do not substitute a drawn signature: Mike explicitly chose AHS DocuSign because acceptance of other signatures is unknown.
+The AHS October reminder also accepts Adobe digital signatures with unique timestamps and wet blue ink. Paper submissions need a color scan emailed plus the original sent to QIC21007, Reimbursement Department. Paid leave still requires a study; no scheduled work and no paid leave means no submission per the reminder. Current-form paid-leave code00010 supersedes the older FAQ’s00008. The reminder’s December31 training deadline does not erase the form’s training attestation.
 
-The email's current attachment has blank provider identifiers, normal paid weekly hours and cost centers. A personalized prior form or an authorized roster is needed to eliminate one-time missing-field entry. QGenda contains scheduled assignments, not proof of actual paid activities.
+## Privacy and scope
 
-## Privacy and persistence
+No accounts in this helper. Provider details and hours stay in this browser’s local draft; clearing the device removes them. Personal QGenda links travel through the MoteOps calendar relay, are cleared after successful import, and are not persisted or shared. Colleague SMS/email/native-share actions include only generic text and the public URL. Each colleague authenticates to QGenda and AHS DocuSign independently. No patient information is needed.
 
-The private subscription link is sent only to the existing MoteOps relay at timestudy-relay.mikedmote5258.workers.dev for retrieval; frontend accepts only HTTPS app.qgenda.com/ical links with a key (webcal is normalized). The key is not saved in localStorage or sharing links and is cleared after a successful import. Relay operator logging behavior is not verified. No analytics or AI parsing is used. The relay is live and rejects unrelated hosts; a real private feed has not been tested in this session.
+Known Highland ED direct-care shifts reuse17013 from a prior April2026 form. This historical setting is explicitly not independently reverified. Unknown workplaces, including unresolved FST labels, are not inferred. No workplace questionnaire is shown. Missing codes allow only a marked coordinator-review draft with a warning cover before signing; nonpatient work uses its supplied home code. Previous explicit codes/legacy selections are preserved.
 
-PDF generation and prior-form extraction happen locally with pinned pdf-lib 1.17.1. Calendar parsing uses bundled ical.js 2.2.1. Calendar times are converted to Pacific dates independent of the browser zone. Cancellation revisions, recurrence exclusions and overnight boundaries are handled. All-day entries with one explicit clock range are recovered automatically; missing or ambiguous times are rejected rather than invented. A failed import preserves reported hours. Draft entries stay in this browser and do not sync across devices. Clear this device removes app drafts and legacy signatures. Sharing links contain only the study date. Email buttons prepare text; they do not attach or send files.
+## Verification and deployment
 
-## Validation completed
+50 automated checks cover personal-link isolation, safe sharing, clipboard fallback, parsing/time zones/overnight boundaries, recurrence, leave, changed totals, profile/PDF import, final-vs-draft exports, blank signatures and stale-download invalidation. Run npm ci and npm test. Synthetic browser import and PDF generation exercised at390px phone width. QGenda entry point reaches sign-in; relay is reachable and rejects non-QGenda hosts. A real colleague’s authenticated QGenda feed and AHS signing were not performed in the October session. Physical iPhone/Android share sheets were not exercised.
 
-33 automated tests pass in Pacific and Eastern time zones, including relay request construction, successful/failed import, date splitting, recurrence/cancellation behavior, blank signature preservation, profile import and actual PDF generation. Chrome synthetic ICS → prior-profile PDF → whole-week confirmation → PDF download completed. The resulting 19-page PDF contained 9 hours September 24 and 1 hour September 25 with both signatures blank. Synthetic browser data was cleared. No real signature, submission or outbound email occurred.
-
-## Hosting
-
-Mike's latest explicit request is a public link he can send to anyone. This authorizes publishing the preparation helper; it does not authorize sending messages, signing or submitting studies. Publish the current branch as a fast-forward to main and remove the broken custom-domain binding so GitHub Pages serves https://mikedmote52.github.io/timestudy/. No force push or repository visibility changes. Validate the public page and PDF assets after deployment. The old timestudy.moteops.tech DNS remains a separate unresolved issue.
-
-No AHS DocuSign API connection is configured. Signing and submission require the official AHS process shown in the app. The site is an independent helper, not an official AHS service.
-
-## Workplace coding, September 18 update
-
-Colleagues no longer have to supply an accounting code in the missing-details screen. Matching Highland ED shift names reuse17013 from the local April22–28,2026 filled AHS form (ER Dept Code and activity CCC fields). The source is a previous form, not a currently verified department directory; UI discloses this. No personal data or prior PDF is published. The colleague workflow does not ask a workplace question. Previously saved workplace choices are retained for existing drafts. Existing explicit codes remain untouched; mixed or unrecognized locations are not guessed. Nonpatient activities are not automatically assigned this clinical-location code.
-
-Unresolved coding permits only an explicitly named coordinator-review draft with an extra warning cover; regular export still rejects missing codes. Both signatures remain blank. Actual hours, review, identity and variance checks still apply. Email text becomes a coding-review request while codes are pending; no email is sent. 42 tests pass, including mapping scope, preservation, mixed locations and draft safeguards.
-
-Hours-difference shortcut: shows the exact reported/normal hours and offers an explicitly chosen varying-weekly-schedule explanation. The app never selects a reason for the colleague. Generated explanations are cleared when their totals change, including after reopening; personally edited reasons are preserved. The required reason still exports to the official justification field.
+GitHub Pages serves main/root. Publish fast-forward only; verify build and live asset hashes. No external messages or real signatures are authorized by app deployment. The old timestudy.moteops.tech DNS is not repaired by this release.

@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Time study | September 24–30, 2026</title>
+<title>AHS time study | September 24–30, 2026</title>
+<meta name="description" content="Prepare your September 24–30 AHS time study from your personal QGenda calendar, review your hours, and sign through AHS DocuSign.">
+<meta name="referrer" content="no-referrer">
 <style>
 :root{--teal:#00707a;--teal-d:#004f56;--bg:#f4f7f7;--card:#fff;--ink:#1c2b2d;--mut:#5f7477;--line:#d9e2e3;--ok:#0a7d38;--warn:#b45309;--err:#b91c1c}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -71,6 +73,8 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
 .mobile-label{display:none}.splitlink{border:0;background:transparent;padding:6px 0;font-family:inherit}
 @media(max-width:640px){#daygrid table{display:block}#daygrid tbody{display:block}#daygrid tr{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}#daygrid tr:first-child{display:none}#daygrid td{display:block;border:0;padding:0;min-width:0}#daygrid .code,#daygrid .rowname,#daygrid .actions{grid-column:1/-1}#daygrid .rowname{font-size:14px}#daygrid .mobile-label{display:block;font-size:11px;color:var(--mut)}#daygrid td input{min-width:0;font-size:16px}#daygrid .tot{text-align:left}.utility #savestatus{flex-basis:100%}}
 @media(max-width:640px){#daygrid .daytotal td:first-child{display:none}#daygrid .daytotal td:last-child{grid-column:1/-1}}
+a.btn{text-decoration:none;text-align:center}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.guide{padding-left:22px}.guide li{margin:8px 0}.leave-days{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.leave-days label{padding:10px;border:1px solid var(--line);border-radius:6px}.leave-days input{width:auto;margin-right:6px}.savecard{margin-top:14px;padding:16px;border:1px solid var(--teal);border-radius:8px;overflow-wrap:anywhere}summary{cursor:pointer;font-weight:600;padding:8px 0}
+@media(max-width:640px){input,select,textarea{font-size:16px}.btn{min-height:44px;max-width:100%;white-space:normal}.actions>.btn{flex:1 1 150px}.wrap{padding:16px 12px 60px}#weeksummary td:last-child{width:55px}#weeksummary .btn{padding:8px}#weeksummary td{overflow-wrap:anywhere}.utility .btn{font-size:13px}.guide{padding-left:18px}}
 </style>
 </head>
 <body>
@@ -79,8 +83,9 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
   <p>Alameda Health System · Non-Physician Practitioner (Non-UC) · SFY 2026-27 Q1 · September 24–30, 2026 · DHCS 5293</p>
 </header>
 <div class="wrap">
-  <div class="banner info"><b>September 24–30, 2026</b><br>Paste your personal QGenda calendar link. We fill the dates, hours, totals and any personal details the calendar includes. Add only what’s missing, review, then sign with AHS DocuSign.</div>
-  <div class="utility"><span id="savestatus" role="status">Draft saved on this browser only.</span><button class="btn sm sec" onclick="copyLink()">Copy colleague link</button><button class="btn sm sec" onclick="clearDraft()">Clear this device</button></div>
+  <div class="banner info"><b>Your September 24–30 time study is due</b><br>Get your QGenda link, review your prepared week, then sign through AHS DocuSign. Use Safari or Chrome on your phone for the easiest download and signing flow.</div>
+  <div class="utility"><span id="savestatus" role="status">Draft saved on this browser only.</span><button class="btn sm sec" onclick="shareColleague()">Share with colleagues</button><button class="btn sm sec" onclick="copyLink()">Copy link</button><button class="btn sm sec" onclick="clearDraft()">Clear this device</button></div>
+  <div id="shareoptions" class="hidden actions"><a id="sharesms" class="btn sec">Text the link</a><a id="shareemail" class="btn sec">Email the link</a><span class="muted">Only the public app link is shared. Your details and private QGenda link are excluded.</span></div>
   <div class="steps" id="steps" aria-label="Time study steps"></div>
 
   <!-- STEP 1: PROVIDER -->
@@ -125,14 +130,21 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
 
   <!-- STEP 2: SCHEDULE -->
   <section class="card hidden" id="panel1">
-    <h2>Start with your QGenda link</h2>
-    <p class="sub" id="schedsub">Your study week is already set: September 24–30, 2026. Import your personal calendar to fill all seven dates, shift hours and totals automatically.</p>
-    <label for="qgendaurl">Personal QGenda calendar subscription link</label>
-    <input id="qgendaurl" type="password" autocomplete="off" spellcheck="false" placeholder="https://app.qgenda.com/ical?key=…">
-    <p class="muted">Use QGenda’s calendar subscription URL, not the shared schedule page. Availability blocks labeled “Unavailable” are excluded. Turn off “Sync as all-day events” to include shift times.</p>
-    <button class="btn" id="qgendabtn" style="margin:14px 0" onclick="importQGenda()">Prepare my time study →</button>
-    <p class="muted">Import sends this private link to the MoteOps calendar relay to fetch QGenda. The link is not saved in your browser draft or included in sharing links. Imported shifts stay in this browser.</p>
+    <h2>1. Get your QGenda link</h2>
+    <p class="sub" id="schedsub">Open your personal Calendar Connections page in a new tab. Sign in to QGenda if asked.</p>
+    <a id="qgendaconnect" class="btn" href="https://app.qgenda.com/UserSettings/CalendarConnections" target="_blank" rel="noopener noreferrer">Open QGenda to copy my link ↗</a>
+    <ol class="guide"><li>Find <b>Your Subscription URL</b> in Calendar Connections or Calendar Sync.</li><li>Copy the link. On a phone, touch and hold it, then choose Copy. Keep “Sync as all-day events” off so shift times are included.</li><li>Return to this browser tab and paste it below.</li></ol>
+    <h2 style="margin-top:22px">2. Paste your link here</h2>
+    <label for="qgendaurl">Personal QGenda subscription URL</label>
+    <input id="qgendaurl" type="password" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="https://app.qgenda.com/ical?key=…">
+    <div class="actions"><button class="btn sec" onclick="pasteQGendaLink()">Paste copied link</button><button class="btn" id="qgendabtn" onclick="importQGenda()">Prepare my time study →</button></div>
+    <p class="muted">Use the subscription link, not a shared schedule page. Preparing sends the private link to the MoteOps relay to fetch your calendar. The link is not saved or included when you share this app.</p>
     <p id="qgendastatus" role="status" aria-live="polite" style="margin:12px 0"></p>
+    <details style="margin:18px 0"><summary>Paid leave, no shifts, or trouble getting a link?</summary>
+    <p>Paid PTO, FMLA, sick leave and vacation still require a time study. If you were not scheduled and had no paid leave during September 24–30, the AHS reminder says no submission is needed.</p>
+    <p class="muted">An empty calendar alone does not establish that you were off. Your feed may no longer include past dates.</p>
+    <div class="actions"><button class="btn sec" onclick="go(3);document.getElementById('leaveeditor').open=true;document.getElementById('leaveeditor').scrollIntoView()">Enter paid leave</button><button class="btn sec" onclick="go(2)">Enter hours manually</button></div>
+    </details>
     <details style="margin:18px 0"><summary>Use a calendar file or type shifts instead</summary>
     <label for="calendarfile">QGenda calendar file (.ics)</label><input id="calendarfile" type="file" accept=".ics,text/calendar" onchange="importCalendarFile(this.files[0])"><br><br>
     <label for="txtshifts">Dates and start / end times, one shift per line</label>
@@ -166,6 +178,7 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
     <div id="profilegap" class="hidden"><span id="profilegaptext"></span></div><div id="missingwrap" class="card hidden" style="background:#f4f8f8"><h2>Just the details we couldn’t find</h2><p class="sub">Fill these once. They are reused when you return on this browser. A previous completed form can fill them too.</p><div id="missingdetails" class="grid2"></div><button class="btn sec sm" style="margin-top:12px" onclick="go(0)">Reuse a previous form or edit saved details</button></div>
     <div id="locationhelp" class="hidden"></div>
     <div id="weeksummary"></div>
+    <details id="leaveeditor" class="card"><summary>Add paid leave missing from QGenda</summary><p class="muted">Enter paid hours only. The current AHS form uses 00010 for paid sick leave, vacation and other paid leave. This updates the paid-leave total on each selected day and keeps other activities.</p><div id="leavedays" class="leave-days"></div><label for="leavehours">Paid-leave hours on each selected day</label><input id="leavehours" type="number" min="0" max="24" step="0.25" placeholder="e.g. 8"><button class="btn sec" style="margin-top:12px" onclick="applyPaidLeave()">Apply paid leave</button><p id="leavestatus" role="status"></p></details>
     <p class="muted">By confirming, I have checked all seven days against actual paid time and activity codes. Dates with zero hours were not worked and were unpaid.</p>
     <button class="btn sec" style="margin:12px 0" onclick="confirmWeek()">Confirm the whole week</button>
     <div id="variancewrap" class="card">
@@ -186,10 +199,15 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
       <button class="btn" id="genbtn" onclick="generatePDF()">Download PDF to review and sign</button>
     </div>
     <div class="banner info hidden" id="genok" style="margin-top:12px"></div>
-    <div class="card" style="margin-top:20px;background:#f4f8f8">
-      <h2>Sign with AHS DocuSign</h2><p class="sub">Direct transfer into AHS DocuSign is not connected. Download your prepared PDF, then upload it to DocuSign using the AHS process below.</p><a class="btn sec" href="https://www.docusign.com/" target="_blank" rel="noopener noreferrer">Open DocuSign</a>
-      <ol class="finish"><li>Open the PDF and check every page.</li><li>Sign and date it on your last day worked. The AHS guide describes DocuSign: sign in with your AHS account, choose Start → Sign a Document, upload the PDF, and add Signature and Date Signed. <a href="assets/ahs-signing-guide.docx">Download AHS signing instructions</a>.</li><li>Follow the form’s supervisor/reviewer signature requirement, including the hours-difference confirmation if applicable.</li><li>Attach the signed copy to your email to <b>pnpptimestudies@alamedahealthsystem.org</b>. The buttons below prepare email text; they do not attach or send your form.</li></ol>
-      <p class="muted">The signature block also confirms training before the study. The notice separately gives December 31, 2026 as the annual learning-module deadline. Contact PNPPTimeStudies if your training status is unclear.</p>
+    <div id="preparedfile" class="savecard hidden"><b id="pdffilename"></b><div class="actions"><a id="pdfpreview" class="btn sec" target="_blank" rel="noopener">Review PDF</a><a id="pdfsave" class="btn sec" download>Save PDF again</a><button id="pdfshare" class="btn sec hidden" onclick="sharePreparedPDF()">Save or share PDF…</button></div><p class="muted">On iPhone, use Save to Files. On Android, check Downloads. You will select this file in DocuSign.</p></div>
+    <div class="card" id="signingcard" style="margin-top:20px;background:#f4f8f8">
+      <h2>3. Sign with AHS DocuSign</h2>
+      <p id="signingstatus" class="sub">Save the prepared PDF above, then open DocuSign. You will upload the saved file there; this app does not transfer it automatically.</p>
+      <a id="docusignlink" class="btn sec" href="https://account.docusign.com/" target="_blank" rel="noopener noreferrer">Open DocuSign to sign ↗</a>
+      <ol class="finish"><li>Sign in with your AHS credentials.</li><li>Choose <b>Start → Sign a Document → Upload</b> and select your saved PDF.</li><li>Review the form, add <b>Signature</b> and <b>Date Signed</b> at the employee signature on page 17, then Finish. DocuSign records the signing date.</li><li>Arrange the required supervisor/reviewer signature. Return the signed form to <b>pnpptimestudies@alamedahealthsystem.org</b>.</li></ol>
+      <p><a href="assets/ahs-signing-guide.docx">AHS DocuSign instructions</a></p>
+      <details><summary>Other AHS-accepted signature methods</summary><p>Adobe digital signature with a unique embedded timestamp (Adobe subscription required), or wet blue ink. For paper forms, email a color scan and send the original blue-ink copy by interdepartmental delivery to <b>QIC Code 21007, Attn: Reimbursement Department</b>. A typed name or a signature drawn in this app is not offered as an accepted substitute.</p></details>
+      <p class="muted">The reminder sets the eLearning deadline at December 31, 2026. The form also asks you to attest to training before the study. If that statement is not accurate for you, contact PNPPTimeStudies before signing.</p>
       <label>Prepare your submission email:</label><p class="muted">Using Outlook inside Citrix? Choose Copy email text and attach the signed PDF there.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
         <button class="btn sec" onclick="openMail('outlook')">Outlook (web)</button>
@@ -204,8 +222,8 @@ footer{max-width:960px;margin:0 auto;padding:10px 16px 30px;color:var(--mut);fon
 <footer>An independent helper by MoteOps, not an official AHS system. Provider details and imported shifts stay in this browser. QGenda link import uses the MoteOps relay. Email buttons hand your draft text to your chosen email service. No patient information is needed. Questions about study requirements: pnpptimestudies@alamedahealthsystem.org</footer>
 
 <script src="assets/pdf-lib.min.js"></script>
-<script src="app.js?v=20260918-review3"></script>
+<script src="app.js?v=20261007-phone1"></script>
 <script src="assets/ical.min.js"></script>
-<script src="calendar.js?v=20260918-review3"></script>
+<script src="calendar.js?v=20261007-phone1"></script>
 </body>
 </html>

@@ -20,12 +20,14 @@ const CONFIG = {
 
 /* ================= STATE ================= */
 const blank = () => { const h={}; CONFIG.days.forEach(D=>{h[D.d]={}; CONFIG.rows.forEach(R=>{h[D.d][R.r]=[{h:"",c:""}];});}); return h; };
+let preparedDownload=null;
 let S = { step:0, day:1, shifts:[], hours:blank(), specify:{}, reviewed:{}, paid:{}, off:{}, expanded:{}, appliedSig:null };
 const $ = id => document.getElementById(id);
 const PFIELDS = ["p_last","p_first","p_mi","p_emp","p_fac","p_dept","p_job","p_hpw","p_phone","cc_ip","cc_op","cc_er","cc_oth_name","cc_oth","cc_default","variance"];
 function qKey(){ return CONFIG.sfy+"|"+CONFIG.quarter+"|"+CONFIG.days[0].date; }
 function saveState(){
   syncGeneratedVariance();
+  clearPreparedDownload();
   const o={qkey:qKey(),p:{},hours:S.hours,specify:S.specify,shifts:S.shifts,reviewed:S.reviewed,paid:S.paid,off:S.off,locationChoice:S.locationChoice,usedPriorLocation:S.usedPriorLocation,varianceSuggestion:S.varianceSuggestion};
   PFIELDS.forEach(k=>o.p[k]=$(k).value);
   try{localStorage.setItem("pnpp_ts_v2:"+qKey(),JSON.stringify(o));$("savestatus").textContent="Draft saved on this browser only.";}
@@ -66,11 +68,61 @@ function applyPeriod(startISO){
 const STEPNAMES=["Your details","QGenda link","Edit exceptions","Review & DocuSign"];
 function renderSteps(){ $("steps").innerHTML=[1,3,0,2].map(i=>`<button type="button" class="step ${i===S.step?'active':''}" ${i===S.step?'aria-current="step"':''} onclick="go(${i})">${STEPNAMES[i]}</button>`).join(""); }
 function go(i){if(i===3&&typeof fillMissingCostCenters==='function')fillMissingCostCenters();saveState();S.step=i;for(let k=0;k<4;k++)$("panel"+k).classList.toggle("hidden",k!==i);renderSteps();if(i===1)renderShifts();if(i===2)renderGrid();if(i===3)renderChecks();window.scrollTo(0,0);}
+const PUBLIC_LINK="https://mikedmote52.github.io/timestudy/?study=2026-09-24";
 function copyLink(){
- const url="https://mikedmote52.github.io/timestudy/?study=2026-09-24";
+ const url=PUBLIC_LINK;
  const done=()=>{$("savestatus").textContent="Colleague link copied. It contains no personal details.";};
  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(done,()=>prompt("Copy the colleague link:",url));
  else prompt("Copy the colleague link:",url);
+}
+function colleagueShare(){return {title:'AHS time study: September 24–30',text:'Time study is due. Open the helper, get your personal QGenda link, review your hours, then sign through AHS DocuSign.',url:PUBLIC_LINK};}
+function initSharing(){
+ const m=colleagueShare(),body=m.text+'\n'+m.url;
+ $('shareemail').href='mailto:?subject='+encodeURIComponent(m.title)+'&body='+encodeURIComponent(body);
+ $('sharesms').href=(/iPhone|iPad|iPod/.test(navigator.userAgent)?'sms:&body=':'sms:?body=')+encodeURIComponent(body);
+}
+async function shareColleague(){
+ const m=colleagueShare();initSharing();
+ if(navigator.share){try{await navigator.share(m);return;}catch(e){if(e.name==='AbortError')return;}}
+ $('shareoptions').classList.remove('hidden');$('savestatus').textContent='Choose text or email, or copy the public link. No personal details are included.';
+}
+async function pasteQGendaLink(){
+ try{if(!navigator.clipboard?.readText)throw new Error('unsupported');const value=await navigator.clipboard.readText();$('qgendaurl').value=value.trim();$('qgendastatus').textContent='Link pasted. Tap Prepare my time study.';}
+ catch{$('qgendaurl').focus();$('qgendastatus').textContent='Touch and hold the link field and choose Paste, or use your keyboard’s paste command.';}
+}
+function addPaidLeave(days,hours){
+ const unique=[...new Set(days.map(Number))];
+ if(!unique.length||unique.some(d=>!CONFIG.days.some(D=>D.d===d)))throw new Error('Select at least one date in the study week.');
+ if(hours===''||!validHours(hours))throw new Error('Enter paid-leave hours from 0 to 24 in .25 increments.');
+ const h=Number(hours);
+ for(const d of unique){const old=S.hours[d]['10'].reduce((n,e)=>n+(Number(e.h)||0),0);if(dayTotal(d)-old+h>24)throw new Error('Worked hours plus paid leave cannot exceed 24 hours on '+CONFIG.days[d-1].tt+'.');if(S.hours[d]['10'].filter(e=>Number(e.h)>0).length>1)throw new Error('This day has split paid-leave allocations. Use Edit to preserve its cost centers.');}
+ for(const d of unique){const center=S.hours[d]['10'].find(e=>e.c)?.c||$('cc_'+$('cc_default').value)?.value.trim()||'';S.hours[d]['10']=[{h:h.toFixed(2),c:center}];S.paid[d]=dayTotal(d).toFixed(2);S.off[d]=false;S.reviewed[d]=false;}
+ saveState();renderChecks();
+}
+function applyPaidLeave(){
+ try{const days=[...document.querySelectorAll('#leavedays input:checked')].map(e=>+e.value);addPaidLeave(days,$('leavehours').value);$('leavestatus').textContent='Paid leave updated. Check the week totals, then confirm the week.';}
+ catch(e){$('leavestatus').textContent=e.message;}
+}
+function clearPreparedDownload(){
+ if(preparedDownload?.url)URL.revokeObjectURL(preparedDownload.url);preparedDownload=null;
+ if($('preparedfile'))$('preparedfile').classList.add('hidden');
+ if($('pdfpreview'))$('pdfpreview').removeAttribute('href');if($('pdfsave'))$('pdfsave').removeAttribute('href');
+}
+function renderSigning(){
+ const pending=hasMissingCostCenters();
+ $('docusignlink').classList.toggle('hidden',pending);
+ $('signingstatus').textContent=pending?'This copy needs cost-center review before signing. Download the marked draft and use the email buttons below to request coding help. Once the missing codes are completed, sign the corrected form through AHS DocuSign.':'Save the prepared PDF above, then open DocuSign. You will upload the saved file there; this app does not transfer it automatically.';
+}
+function offerPreparedDownload(bytes,fname,draft){
+ clearPreparedDownload();const file=new File([bytes],fname,{type:'application/pdf'}),url=URL.createObjectURL(file);preparedDownload={file,url,draft};
+ $('pdffilename').textContent=fname;$('pdfpreview').href=url;$('pdfsave').href=url;$('pdfsave').download=fname;$('preparedfile').classList.remove('hidden');
+ let share=false;try{share=!!navigator.share&&!!navigator.canShare?.({files:[file]});}catch{}
+ $('pdfshare').classList.toggle('hidden',!share);return url;
+}
+async function sharePreparedPDF(){
+ if(!preparedDownload)return;
+ try{await navigator.share({files:[preparedDownload.file],title:preparedDownload.draft?'Time study draft for coding review':'Prepared AHS time study, unsigned'});}
+ catch(e){if(e.name!=='AbortError'){$('genok').textContent='Sharing is unavailable. Use Save PDF again, then choose the saved file in DocuSign.';$('genok').classList.remove('hidden');}}
 }
 function cvAP(h,m,ap){ h=+h; m=+(m||0); ap=(ap||"").toLowerCase();
   if(ap.startsWith("p")&&h<12)h+=12; if(ap.startsWith("a")&&h===12)h=0; return [h,m]; }
@@ -268,6 +320,7 @@ function renderChecks(refreshMissing=true){
  $("weeksummary").innerHTML=`<b>${total.toFixed(2)} hours prepared</b> · ${normal.toFixed(2)} normal weekly hours<table><tr><th>Date</th><th>Hours / activity</th><th></th></tr>${CONFIG.days.map(D=>`<tr><td>${D.label} ${D.tt}</td><td>${dayTotal(D.d).toFixed(2)} h<br><span class="muted">${CONFIG.rows.filter(R=>S.hours[D.d][R.r].some(e=>Number(e.h)>0)).map(R=>esc(R.name)+' · '+S.hours[D.d][R.r].filter(e=>Number(e.h)>0).map(e=>esc(e.h)+'h / '+esc(e.c||'code pending coordinator review')).join(', ')).join('<br>')||(S.reviewed[D.d]&&S.off[D.d]?'Not worked / unpaid':'No hours entered — confirm unpaid or edit')}${S.reviewed[D.d]&&!dayErrors(D.d).length?' ✓':''}</span></td><td><button class="btn sec sm" onclick="S.day=${D.d};go(2)">Edit</button></td></tr>`).join('')}</table>`;
  if($('profilegap')){const missing=checks().slice(0,5).filter(c=>!c.ok);$('profilegap').classList.toggle('hidden',!missing.length);$('profilegaptext').textContent=missing.map(c=>c.t.replace(' entered','')).join('; ');}
  renderVariance();
+ renderSigning();
 }
 function mailParts(){
  if(hasMissingCostCenters())return {to:CONFIG.email,sub:'Cost-center review needed: PNPP '+CONFIG.sfy+' '+CONFIG.quarter,body:'Hello,\n\nPlease help confirm the cost-center codes for my prepared '+CONFIG.tsDates+' time-study draft. The draft cover identifies the affected dates. This is a request for coding review, not a final signed submission.\n\nThank you'};
@@ -355,7 +408,7 @@ async function buildPDF({allowMissingCostCenters=false}={}){
 }
 async function generatePDF(){
  const err=$("generr");err.classList.add("hidden");const btn=$("genbtn");
- try{btn.disabled=true;btn.textContent="Preparing PDF…";const {bytes,fname,draft}=await buildPDF({allowMissingCostCenters:hasMissingCostCenters()});const url=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));const a=document.createElement("a");a.href=url;a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);$("genok").textContent=draft?"Draft download requested. Missing codes are flagged on its cover. Have the coordinator complete the codes before signing or submitting.":"PDF download requested. Check your browser downloads, review the form, then sign and arrange supervisor/reviewer signature. Nothing has been submitted.";$("genok").classList.remove("hidden");}
+ try{btn.disabled=true;btn.textContent="Preparing PDF…";const {bytes,fname,draft}=await buildPDF({allowMissingCostCenters:hasMissingCostCenters()});const url=offerPreparedDownload(bytes,fname,draft);const a=document.createElement("a");a.href=url;a.download=fname;a.click();$("genok").textContent=draft?"Draft download requested. Missing codes are flagged on its cover. Have the coordinator complete the codes before signing or submitting.":"PDF download requested. Check your browser downloads, review the form, then sign and arrange supervisor/reviewer signature. Nothing has been submitted.";$("genok").classList.remove("hidden");}
  catch(e){err.textContent=e.message;err.classList.remove("hidden");renderChecks();}
  finally{btn.disabled=false;btn.textContent=hasMissingCostCenters()?"Download draft for coordinator review":"Download PDF to review and sign";}
 }

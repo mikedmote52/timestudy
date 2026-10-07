@@ -80,7 +80,10 @@ function parseQGendaICS(raw){
   if(z<=winStart()||a>=winEnd())return;
   if(!Number.isFinite(+a)||!Number.isFinite(+z)||z<=a||z-a>864e5)throw new Error('A shift has missing or invalid start/end times. Correct the QGenda calendar before importing.');
   const data=labeledCalendarData(item.description);profiles.push(data);
-  const activity=CONFIG.rows.find(r=>r.code===String(data.activity||'').padStart(5,'0'))?.r||'1';
+  const paidLeave=/\b(?:PTO|paid (?:leave|sick|vacation)|sick leave)\b/i.test(item.summary||'')&&!/\bunpaid\b/i.test(item.summary||'');
+  const explicitActivity=CONFIG.rows.find(r=>r.code===String(data.activity||'').padStart(5,'0'))?.r;
+  if(!explicitActivity&&!paidLeave&&/\b(?:vacation|FMLA|leave|sick|unpaid)\b/i.test(item.summary||''))throw new Error('A leave event does not identify paid hours clearly. Enter confirmed paid leave using the paid-leave shortcut, or enter worked hours manually. Unpaid leave is not reported as patient care.');
+  const activity=explicitActivity||(paidLeave?'10':'1');
   events.push({start:a,end:z,name:item.summary||'QGenda shift',costCenter:data.costCenter||'',activity});
  };
  for(const c of components){
@@ -116,7 +119,7 @@ async function importQGenda(){
   try{response=await fetch(QGENDA_RELAY+encodeURIComponent(url),{signal:controller.signal,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});}catch{throw new Error('The calendar could not be loaded. Try again or import a calendar file below.');}finally{clearTimeout(timer);}
   if(!response.ok)throw new Error('QGenda could not be reached. Check the link and try again, or import a calendar file below.');
   const events=parseQGendaICS(await response.text());
-  if(!events.length)throw new Error('No shifts found for September 24–30. Check that this is your personal calendar and the schedule is published. Existing entries were kept.');
+  if(!events.length)throw new Error('No shifts found for September 24–30. Your calendar may not include past history. Check the dates in QGenda, use a calendar file, or enter hours and paid leave below. Existing entries were kept.');
   applyCalendarProfile(events.profile);ingestShifts(events);status.textContent=events.length+' shifts found. Times are shown in Pacific time.';
   $('qgendaurl').value='';
   if(applyShifts()){go(3);$('importnotice').textContent='QGenda filled the week below. Confirm actual paid hours and activity allocation; edit only exceptions.';}
@@ -184,4 +187,6 @@ async function readProviderFile(file){
  catch(e){$('profilestatus').textContent=e.message;}
 }
 // Open at the colleague's first action, not a long provider questionnaire.
-go(1);
+initSharing();
+$('leavedays').innerHTML=CONFIG.days.map(D=>`<label><input type="checkbox" value="${D.d}">${D.tt}</label>`).join('');
+go(CONFIG.days.some(D=>dayTotal(D.d)>0)?3:1);
