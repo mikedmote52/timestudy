@@ -28,7 +28,7 @@ function qKey(){ return CONFIG.sfy+"|"+CONFIG.quarter+"|"+CONFIG.days[0].date; }
 function saveState(){
   syncGeneratedVariance();
   clearPreparedDownload();
-  const o={qkey:qKey(),p:{},hours:S.hours,specify:S.specify,shifts:S.shifts,reviewed:S.reviewed,paid:S.paid,off:S.off,locationChoice:S.locationChoice,usedPriorLocation:S.usedPriorLocation,varianceSuggestion:S.varianceSuggestion};
+  const o={qkey:qKey(),p:{},hourBasis:S.hourBasis,hours:S.hours,specify:S.specify,shifts:S.shifts,reviewed:S.reviewed,paid:S.paid,off:S.off,locationChoice:S.locationChoice,usedPriorLocation:S.usedPriorLocation,varianceSuggestion:S.varianceSuggestion};
   PFIELDS.forEach(k=>o.p[k]=$(k).value);
   try{localStorage.setItem("pnpp_ts_v2:"+qKey(),JSON.stringify(o));$("savestatus").textContent="Draft saved on this browser only.";}
   catch(e){$("savestatus").textContent="Draft could not be saved. Keep this page open until you download your form.";}
@@ -41,7 +41,7 @@ function loadState(){
     if(!o || o.qkey!==qKey())return;
     PFIELDS.forEach(k=>{if(o.p&&typeof o.p[k]==="string")$(k).value=o.p[k];});
     if(o.hours && CONFIG.days.every(D=>CONFIG.rows.every(R=>Array.isArray(o.hours[D.d]?.[R.r]))))S.hours=o.hours;
-    S.specify=o.specify||{};S.shifts=Array.isArray(o.shifts)?o.shifts:[];S.reviewed=o.reviewed||{};S.paid=o.paid||{};S.off=o.off||{};S.locationChoice=o.locationChoice||'';S.usedPriorLocation=!!o.usedPriorLocation;S.varianceSuggestion=o.varianceSuggestion||null;
+    S.hourBasis=o.hourBasis||null;S.specify=o.specify||{};S.shifts=Array.isArray(o.shifts)?o.shifts:[];S.reviewed=o.reviewed||{};S.paid=o.paid||{};S.off=o.off||{};S.locationChoice=o.locationChoice||'';S.usedPriorLocation=!!o.usedPriorLocation;S.varianceSuggestion=o.varianceSuggestion||null;
   }catch(e){$("savestatus").textContent="Saved draft could not be read. Check your entries before continuing.";}
 }
 function clearDraft(){
@@ -181,7 +181,7 @@ function wallISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function ingestShifts(evs){
   S.locationChoice='';S.usedPriorLocation=false;
   const t0=winStart(), t1=winEnd();
-  const kept=evs.filter(e=>e.end>t0 && e.start<t1).sort((a,b)=>a.start-b.start);
+  const kept=evs.filter(e=>e.start>=t0 && e.start<t1).sort((a,b)=>a.start-b.start);
   S.shifts=kept.map(e=>({start:wallISO(e.start),end:wallISO(e.end),name:e.name,costCenter:e.costCenter||"",activity:e.activity||"1",use:true}));
   saveState();renderShifts();
   if(!kept.length) alert("Import worked, but found no events inside the study week.");
@@ -201,23 +201,22 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 function round25(x){ return Math.round(x*4)/4; }
 function applyShifts(){
  if(!S.shifts.some(s=>s.use))return;
- const selected=S.shifts.filter(s=>s.use).sort((a,b)=>new Date(a.start)-new Date(b.start));
+ const selected=S.shifts.filter(s=>s.use&&new Date(s.start)>=winStart()&&new Date(s.start)<winEnd()).sort((a,b)=>new Date(a.start)-new Date(b.start));
+ if(!selected.length){alert("No selected shifts start during this study week. Existing hours were kept.");return;}
  for(let i=1;i<selected.length;i++)if(new Date(selected[i].start)<new Date(selected[i-1].end)){alert("Selected shifts overlap. Uncheck the duplicate or correct your shifts first.");return;}
- if(CONFIG.days.some(D=>dayTotal(D.d)>0)&&!confirm("Replace all current activity hours with these selected shifts as draft direct patient-care hours?"))return;
+ if(CONFIG.days.some(D=>dayTotal(D.d)>0)&&!confirm("Replace current activity hours and exceptions with the selected full shifts on their scheduled start dates?"))return;
  if(selected.some(s=>{const a=new Date(s.start),z=new Date(s.end);return a.getMinutes()%15||z.getMinutes()%15||a.getSeconds()||z.getSeconds();})){alert("These shift times are not quarter-hour boundaries. Enter actual activity hours directly in .25 increments; the app will not round your time automatically.");return;}
  const ccKey=$("cc_default").value, ccVal={ip:$("cc_ip").value,op:$("cc_op").value,er:$("cc_er").value,oth:$("cc_oth").value}[ccKey]||"";
  const perDay={};CONFIG.days.forEach(D=>perDay[D.d]={});
  for(const s of selected){
   const a=new Date(s.start),z=new Date(s.end),r=CONFIG.rows.some(R=>R.r===s.activity)?s.activity:'1',cc=s.costCenter||ccVal;
-  for(const D of CONFIG.days){
-   const [Y,M,Dd]=D.date.split("-").map(Number);const lo=Math.max(a,new Date(Y,M-1,Dd)),hi=Math.min(z,new Date(Y,M-1,Dd+1));
-   if(hi>lo){const key=JSON.stringify([r,cc]);perDay[D.d][key]=(perDay[D.d][key]||0)+(hi-lo)/3600000;}
-  }
+  const D=CONFIG.days.find(D=>D.date===wallISO(a).slice(0,10));
+  if(D){const key=JSON.stringify([r,cc]);perDay[D.d][key]=(perDay[D.d][key]||0)+(z-a)/3600000;}
  }
  for(const D of CONFIG.days)for(const R of CONFIG.rows)if(Object.keys(perDay[D.d]).filter(k=>JSON.parse(k)[0]===R.r).length>3){alert('More than three cost centers for one activity on '+D.tt+'. Review the allocations before importing.');return;}
- S.hours=blank();S.specify={};S.reviewed={};S.off={};S.paid={};
+ S.hourBasis="shift-start";S.hours=blank();S.specify={};S.reviewed={};S.off={};S.paid={};
  for(const D of CONFIG.days){for(const [key,h] of Object.entries(perDay[D.d])){const [r,c]=JSON.parse(key);if(S.hours[D.d][r][0].h==='')S.hours[D.d][r]=[];S.hours[D.d][r].push({h:h.toFixed(2),c});}const total=dayTotal(D.d);if(total>0)S.paid[D.d]=total.toFixed(2);}
- saveState();$("importmessage").textContent="Draft hours added. Review the whole week together, and edit any unpaid breaks or different activities.";return true;
+ saveState();$("importmessage").textContent="Full shifts added to their scheduled start dates. Review paid hours and edit any exceptions.";return true;
 }
 /* ================= HOURS GRID ================= */
 function dayTotal(d){ let t=0; CONFIG.rows.forEach(R=>S.hours[d][R.r].forEach(e=>t+=parseFloat(e.h)||0)); return t; }
@@ -291,6 +290,7 @@ function checks(){
  return out;
 }
 function renderChecks(refreshMissing=true){
+ $("shiftdateupdate").classList.toggle("hidden",S.hourBasis==="shift-start"||!S.shifts.some(s=>s.use)||!CONFIG.days.some(D=>dayTotal(D.d)>0));
  if(refreshMissing&&typeof renderMissingDetails==='function')renderMissingDetails();
  if($('preparedfor'))$('preparedfor').textContent=[$('p_first').value,$('p_last').value].filter(Boolean).join(' ')||'Your time study';
  if($("reviewshifts"))$("reviewshifts").innerHTML=S.shifts.filter(s=>s.use).map(s=>`<p>${esc(s.name)} · ${esc(new Date(s.start).toLocaleString())} → ${esc(new Date(s.end).toLocaleString())} (Pacific)</p>`).join("")||"<p>No calendar imported.</p>";

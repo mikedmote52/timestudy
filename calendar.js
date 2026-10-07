@@ -69,7 +69,7 @@ function parseQGendaICS(raw){
  const add=(item,start,end)=>{
   if(String(item.component.getFirstPropertyValue('status')).toUpperCase()==='CANCELLED')return;
   let a=calendarTime(start,item.component.getFirstProperty('dtstart')),z=calendarTime(end,item.component.getFirstProperty('dtend')||item.component.getFirstProperty('dtstart'));
-  if(z<winStart()||a>=winEnd())return;
+  if(a<winStart()||a>=winEnd())return;
   // Availability blocks are not assignments, including QGenda's all-day blocks.
   if(/\bunavailable\b/i.test(item.summary||''))return;
   if(start.isDate||end.isDate){
@@ -77,7 +77,7 @@ function parseQGendaICS(raw){
    if(!times){if(z<=winStart())return;throw new Error('Your QGenda calendar contains all-day events without clear shift times. In QGenda calendar sync, turn off “Sync as all-day events” and retry so shift hours can be filled accurately.');}
    a=times.start;z=times.end;
   }
-  if(z<=winStart()||a>=winEnd())return;
+  if(a<winStart()||a>=winEnd())return;
   if(!Number.isFinite(+a)||!Number.isFinite(+z)||z<=a||z-a>864e5)throw new Error('A shift has missing or invalid start/end times. Correct the QGenda calendar before importing.');
   const data=labeledCalendarData(item.description);profiles.push(data);
   const paidLeave=/\b(?:PTO|paid (?:leave|sick|vacation)|sick leave)\b/i.test(item.summary||'')&&!/\bunpaid\b/i.test(item.summary||'');
@@ -145,7 +145,7 @@ function fillMissingCostCenters(){
  const cc=$('cc_'+$('cc_default').value)?.value.trim();
  for(const D of CONFIG.days){
   const start=new Date(D.date+'T00:00:00'),end=new Date(start);end.setDate(end.getDate()+1);
-  const shifts=S.shifts.filter(s=>s.use&&new Date(s.start)<end&&new Date(s.end)>start);
+  const shifts=S.shifts.filter(s=>s.use&&new Date(s.start)<end&&(S.hourBasis==='shift-start'?new Date(s.start)>=start:new Date(s.end)>start));
   const fromSchedule=shifts.length&&shifts.every(s=>locationForShift(s.name)==='highland-ed');
   for(const R of CONFIG.rows)for(const e of S.hours[D.d][R.r])if(Number(e.h)>0&&!e.c.trim()){
    const mapped=R.r==='1'&&(S.locationChoice==='highland-ed'||fromSchedule)?'17013':'';
