@@ -105,3 +105,15 @@ test('saved midnight allocations remain untouched until reapply and new allocati
  w.applyShifts();w.go(3);assert.equal(w.eval('dayTotal(1)'),10);assert.equal(w.document.getElementById('shiftdateupdate').classList.contains('hidden'),true);
  const saved=JSON.parse(w.localStorage.getItem('pnpp_ts_v2:2026-27|Q1|2026-09-24'));assert.equal(saved.hourBasis,'shift-start');w.close();
 });
+
+test('DocuSign handoff copies only the PNPP recipient and keeps sending in DocuSign',async()=>{
+ const w=await app();seed(w);w.go(3);let copied='';w.navigator.clipboard={writeText:async text=>{copied=text;}};
+ await w.copySubmissionRecipient();assert.equal(copied,'pnpptimestudies@alamedahealthsystem.org');assert.match(w.document.getElementById('recipientstatus').textContent,/copied/i);
+ const link=w.document.getElementById('docusignlink');assert.equal(link.href,'https://account.docusign.com/');assert.equal(link.target,'_blank');assert.match(link.getAttribute('onclick'),/copySubmissionRecipient/);
+ assert.match(w.document.getElementById('signingcard').textContent,/Almost Done/);assert.equal(w.document.getElementById('emailfallback').open,false);w.close();
+});
+test('blocked clipboard gives a selectable recipient without claiming it was copied or sent',async()=>{
+ const w=await app();w.go(3);w.navigator.clipboard={writeText:async()=>{throw new Error('denied')}};await w.copySubmissionRecipient();
+ const recipient=w.document.getElementById('submissionrecipient');assert.equal(recipient.value,'pnpptimestudies@alamedahealthsystem.org');assert.equal(w.document.activeElement,recipient);assert.equal(recipient.selectionEnd,recipient.value.length);
+ assert.match(w.document.getElementById('recipientstatus').textContent,/copy.*address/i);assert.doesNotMatch(w.document.getElementById('recipientstatus').textContent,/copied|sent successfully/i);w.close();
+});

@@ -196,20 +196,30 @@ a.btn{text-decoration:none;text-align:center}.actions{display:flex;gap:10px;flex
     <div class="banner info hidden" id="genok" style="margin-top:12px"></div>
     <div id="preparedfile" class="savecard hidden"><b id="pdffilename"></b><div class="actions"><a id="pdfpreview" class="btn sec" target="_blank" rel="noopener">Review PDF</a><a id="pdfsave" class="btn sec" download>Save PDF again</a><button id="pdfshare" class="btn sec hidden" onclick="sharePreparedPDF()">Save or share PDF…</button></div><p class="muted">On iPhone, use Save to Files. On Android, check Downloads. You will select this file in DocuSign.</p></div>
     <div class="card" id="signingcard" style="margin-top:20px;background:#f4f8f8">
-      <h2>3. Sign with AHS DocuSign</h2>
-      <p id="signingstatus" class="sub">Save the prepared PDF above, then open DocuSign. You will upload the saved file there; this app does not transfer it automatically.</p>
-      <a id="docusignlink" class="btn sec" href="https://account.docusign.com/" target="_blank" rel="noopener noreferrer">Open DocuSign to sign ↗</a>
-      <ol class="finish"><li>Sign in with your AHS credentials.</li><li>Choose <b>Start → Sign a Document → Upload</b> and select your saved PDF.</li><li>Review the form, add <b>Signature</b> and <b>Date Signed</b> at the employee signature on page 17, then Finish. DocuSign records the signing date.</li><li>Arrange the required supervisor/reviewer signature. Return the signed form to <b>pnpptimestudies@alamedahealthsystem.org</b>.</li></ol>
-      <p><a href="assets/ahs-signing-guide.docx">AHS DocuSign instructions</a></p>
-      <details><summary>Other AHS-accepted signature methods</summary><p>Adobe digital signature with a unique embedded timestamp (Adobe subscription required), or wet blue ink. For paper forms, email a color scan and send the original blue-ink copy by interdepartmental delivery to <b>QIC Code 21007, Attn: Reimbursement Department</b>. A typed name or a signature drawn in this app is not offered as an accepted substitute.</p></details>
-      <p class="muted">The reminder sets the eLearning deadline at December 31, 2026. The form also asks you to attest to training before the study. If that statement is not accurate for you, contact PNPPTimeStudies before signing.</p>
-      <label>Prepare your submission email:</label><p class="muted">Using Outlook inside Citrix? Choose Copy email text and attach the signed PDF there.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-        <button class="btn sec" onclick="openMail('outlook')">Outlook (web)</button>
-        <button class="btn sec" onclick="openMail('gmail')">Gmail</button>
-        <button class="btn sec" onclick="openMail('app')">Mail app</button>
-        <button class="btn sec" onclick="openMail('copy')">Copy email text</button>
-      </div>
+      <h2>3. Sign and email from DocuSign</h2>
+      <p id="signingstatus" class="sub">Save the prepared PDF above. DocuSign can sign it and email the completed copy directly to PNPP.</p>
+      <a id="docusignlink" class="btn" href="https://account.docusign.com/" target="_blank" rel="noopener noreferrer" onclick="copySubmissionRecipient()">Copy recipient &amp; open DocuSign ↗</a>
+      <ol class="finish">
+        <li>Sign in with your AHS credentials. Choose <b>Start → Sign a Document → Upload</b> and select your prepared PDF.</li>
+        <li>Add <b>Signature</b> and <b>Date Signed</b> on page 17, then choose <b>Finish</b>.</li>
+        <li>In <b>Almost Done — Send a completed copy to others</b>, paste the PNPP email below into <b>Email</b> and choose <b>Send</b>. DocuSign sends the signed copy directly.</li>
+      </ol>
+      <label for="submissionrecipient">Send the completed study to PNPP Time Studies</label>
+      <input id="submissionrecipient" type="text" readonly value="pnpptimestudies@alamedahealthsystem.org" onclick="this.select()" style="font-size:16px">
+      <button type="button" class="btn sec" style="margin-top:10px" onclick="copySubmissionRecipient()">Copy email address</button>
+      <p id="recipientstatus" role="status" aria-live="polite" class="muted"></p>
+      <p class="muted">Include the required supervisor/reviewer signature before final submission.</p>
+      <details><summary>Show the AHS guide’s send screen</summary><img src="assets/ahs-docusign-send.png" alt="AHS DocuSign guide: Almost Done window, PNPP Time Studies entered as the recipient, and the Send button." loading="lazy" style="display:block;width:100%;max-width:520px;height:auto;margin:12px auto"><p><a href="assets/ahs-signing-guide.docx">Full AHS DocuSign instructions</a></p></details>
+      <details id="emailfallback" style="margin-top:14px"><summary>Already downloaded the signed PDF? Email it instead</summary>
+        <p class="muted">Choose your email app below. The recipient, subject and message are filled in; attach the <b>signed PDF from DocuSign</b> before sending. These buttons do not attach a file. In Citrix Outlook, use Copy email text.</p>
+        <div class="actions">
+          <button class="btn sec" onclick="openMail('outlook')">Outlook (web)</button>
+          <button class="btn sec" onclick="openMail('gmail')">Gmail</button>
+          <button class="btn sec" onclick="openMail('app')">Mail app</button>
+          <button class="btn sec" onclick="openMail('copy')">Copy email text</button>
+        </div>
+      </details>
+      <details style="margin-top:14px"><summary>Other signature methods and training</summary><p>Adobe digital signature with a unique embedded timestamp (Adobe subscription required), or wet blue ink. For paper forms, email a color scan and send the original blue-ink copy by interdepartmental delivery to <b>QIC Code 21007, Attn: Reimbursement Department</b>.</p><p>The reminder sets the eLearning deadline at December 31, 2026. The form also asks you to attest to training before the study. If that statement is not accurate for you, contact PNPPTimeStudies before signing.</p></details>
     </div>
     <div class="nav"><button class="btn sec" onclick="go(2)">← Back</button><span></span></div>
   </section>
@@ -217,8 +227,8 @@ a.btn{text-decoration:none;text-align:center}.actions{display:flex;gap:10px;flex
 <footer>An independent helper by MoteOps, not an official AHS system. Provider details and imported shifts stay in this browser. QGenda link import uses the MoteOps relay. Email buttons hand your draft text to your chosen email service. No patient information is needed. Questions about study requirements: pnpptimestudies@alamedahealthsystem.org</footer>
 
 <script src="assets/pdf-lib.min.js"></script>
-<script src="app.js?v=20261007-shiftdate3"></script>
+<script src="app.js?v=20261007-send4"></script>
 <script src="assets/ical.min.js"></script>
-<script src="calendar.js?v=20261007-shiftdate3"></script>
+<script src="calendar.js?v=20261007-send4"></script>
 </body>
 </html>

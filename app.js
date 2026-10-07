@@ -110,7 +110,19 @@ function clearPreparedDownload(){
 }
 function renderSigning(){
  $('docusignlink').classList.remove('hidden');
- $('signingstatus').textContent='Save the prepared PDF above, then open DocuSign. You will upload the saved file there; this app does not transfer it automatically.';
+ $('submissionrecipient').value=CONFIG.email;
+ $('signingstatus').textContent='Save the prepared PDF above. DocuSign can sign it and email the completed copy directly to PNPP.';
+}
+async function copySubmissionRecipient(){
+ const input=$('submissionrecipient');input.value=CONFIG.email;
+ try{
+  if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
+  await navigator.clipboard.writeText(CONFIG.email);
+  $('recipientstatus').textContent='Recipient copied. After Finish in DocuSign, paste it into Email in the Almost Done window and choose Send.';
+ }catch{
+  input.focus();input.select();
+  $('recipientstatus').textContent='Copy the selected email address. After Finish in DocuSign, paste it into Email in the Almost Done window and choose Send.';
+ }
 }
 function offerPreparedDownload(bytes,fname,draft){
  clearPreparedDownload();const file=new File([bytes],fname,{type:'application/pdf'}),url=URL.createObjectURL(file);preparedDownload={file,url,draft};
