@@ -131,9 +131,10 @@ a.btn{text-decoration:none;text-align:center}.actions{display:flex;gap:10px;flex
   <!-- STEP 2: SCHEDULE -->
   <section class="card hidden" id="panel1">
     <h2>1. Get your QGenda link</h2>
-    <p class="sub" id="schedsub">Open your personal Calendar Connections page in a new tab. Sign in to QGenda if asked.</p>
-    <a id="qgendaconnect" class="btn" href="https://app.qgenda.com/UserSettings/CalendarConnections" target="_blank" rel="noopener noreferrer">Open QGenda to copy my link ↗</a>
-    <ol class="guide"><li>Find <b>Your Subscription URL</b> in Calendar Connections or Calendar Sync.</li><li>Copy the link. On a phone, touch and hold it, then choose Copy. Keep “Sync as all-day events” off so shift times are included.</li><li>Return to this browser tab and paste it below.</li></ol>
+    <p class="sub" id="schedsub">Open QGenda Home in a new tab, then choose Sync to reveal your personal link. Sign in if asked.</p>
+    <a id="qgendaconnect" class="btn" href="https://app.qgenda.com/dashboard" target="_blank" rel="noopener noreferrer">Open QGenda Home ↗</a>
+    <ol class="guide"><li>On QGenda Home, choose <b>Sync</b> under Navigate, or <b>Sync Calendar</b> beside My Quick View. If asked to choose an organization, select Alameda Health System.</li><li>In the <b>Sync Calendar</b> window, copy the entire <b>Your Subscription URL</b> field. On a phone, touch and hold the field, then choose Select All and Copy. Keep “Sync as all-day events” unchecked so shift times are included.</li><li>Return to this browser tab and paste it below.</li></ol>
+    <p class="muted">Seeing Google Calendar connections? Choose <b>Home</b>, then <b>Sync</b>. You do not need to connect or disconnect a Google account.</p>
     <h2 style="margin-top:22px">2. Paste your link here</h2>
     <label for="qgendaurl">Personal QGenda subscription URL</label>
     <input id="qgendaurl" type="password" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="https://app.qgenda.com/ical?key=…">
